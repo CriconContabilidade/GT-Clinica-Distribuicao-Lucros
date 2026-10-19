@@ -292,6 +292,7 @@ function parseDemonstrativo(pages){
         continue;
       }
       if(!sec) continue;
+      if(sec.sinal==='+'&&/^[A-Za-zÀ-ÿ.]+(?: [A-Za-zÀ-ÿ.]+){0,2}$/.test(l.text)&&l.text.length<=25&&!/^(Valor|Documento|Total|Benefici|Motivo)/i.test(l.text)){(sec.orfas=sec.orfas||[]).push(l.text);continue;}
       const mv=l.items.filter(i=>MONEY.test(i.s));
       const texto=l.text;
       const m=texto.match(/^(.*?)(?:R\$)?\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})$/);
@@ -305,6 +306,12 @@ function parseDemonstrativo(pages){
   }
   out.secoes.forEach(s=>{
     s.somaLinhas=r2(sum(s.linhas.map(x=>x.valor)));
+    // linha cortada no PDF (nome sem valor): a diferença p/ o total da seção é dela
+    const dif=r2(s.valor-s.somaLinhas);
+    if(s.sinal==='+'&&s.orfas&&s.orfas.length===1&&dif>0.005){
+      s.linhas.push({texto:s.orfas[0],valor:dif,inferido:true});
+      s.somaLinhas=r2(s.somaLinhas+dif);
+    }
   });
   return out;
 }
@@ -326,9 +333,10 @@ function linhasDoMedico(demo,d){
   demo.secoes.forEach((s,si)=>{
     const n=norm(s.nome);
     s.linhas.forEach((l,li)=>{
-      if(!re.test(norm(l.texto))) return;
-      if(ehAlim(s)) alim.push({key:si+':'+li,secao:s.nome,texto:l.texto,valor:l.valor});
-      else if(s.sinal==='+'&&!/producao total/.test(n)) extras.push({key:si+':'+li,secao:s.nome,texto:l.texto,valor:l.valor});
+      const nt=norm(l.texto);
+      if(!re.test(nt)&&!(l.inferido&&nt.length>=3&&norm(d.nome).startsWith(nt.replace(/\.$/,'')))) return;
+      if(ehAlim(s)) alim.push({key:si+':'+li,secao:s.nome,texto:l.texto,valor:l.valor,inferido:l.inferido});
+      else if(s.sinal==='+'&&!/producao total/.test(n)) extras.push({key:si+':'+li,secao:s.nome,texto:l.texto,valor:l.valor,inferido:l.inferido});
     });
   });
   return {extras,alim};
@@ -530,7 +538,7 @@ function renderMedicos(){
       else{
         d+=m.rels.length?m.rels.map(x=>`Relatório ${esc(x.hospital)} (${esc(x.medico)}): R$ ${brl(x.total)} <span style="opacity:.7">[${Object.entries(x.porConvenio).map(([k,v])=>esc(k)+' '+brl(v)).join(' · ')}]</span>`).join('<br>')+'<br>':'<i>Nenhum relatório carregado para este médico.</i><br>';
         if(m.extras.length){
-          d+='<b>Demais lançamentos do demonstrativo Unimed</b> (marque para somar):<br>'+m.extras.map(e=>`<label><input type="checkbox" data-extra="${m.id}" data-key="${e.key}"${m.off[e.key]?'':' checked'}> ${esc(e.secao)} — ${esc(e.texto)}: R$ ${brl(e.valor)}</label>`).join('<br>');
+          d+='<b>Demais lançamentos do demonstrativo Unimed</b> (marque para somar):<br>'+m.extras.map(e=>`<label><input type="checkbox" data-extra="${m.id}" data-key="${e.key}"${m.off[e.key]?'':' checked'}> ${esc(e.secao)} — ${esc(e.texto)}: R$ ${brl(e.valor)}${e.inferido?' <span class="badge warn">valor cortado no PDF — diferença do total da seção</span>':''}</label>`).join('<br>');
         }
       }
       if(m.alim.length) d+='<br><b>Alimentação (demonstrativo)</b>: '+m.alim.map(a=>`${esc(a.secao.replace(/DÉBITO CONSUMO /i,''))} R$ ${brl(a.valor)}`).join(' · ');
