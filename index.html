@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GT Clínica - Distribuição de Lucros</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --ink:#1A1A1A; --ink-soft:#65656B; --paper:#E7E6E2; --paper-raised:#FFFFFF;
+  --rule:#D6D5D1; --rule-strong:#A9A7A2; --red:#A6392C; --red-bg:#F6E1DC;
+  --green-ink:#1F5E3C; --green-bg:#DEEEE3; --amber:#8A6400; --amber-bg:#FCEEA9;
+  --accent:#2B4C7E; --accent-bg:#DDE6F2;
+  --shadow:0 1px 2px rgba(0,0,0,0.06),0 4px 14px rgba(0,0,0,0.06);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;-webkit-font-smoothing:antialiased;}
+.app{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+.topbar{padding-bottom:18px;margin-bottom:22px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+.brand h1{font-family:'Source Serif 4',serif;font-size:26px;font-weight:800;margin:0 0 4px;letter-spacing:-0.01em;}
+.brand .sub{font-size:13px;color:var(--ink-soft);max-width:720px;}
+.backlink{font-size:12.5px;color:var(--ink-soft);text-decoration:none;border-bottom:1px dotted var(--ink-soft);}
+.backlink:hover{color:var(--ink);}
+.card{background:var(--paper-raised);border:1.5px solid var(--ink);border-radius:6px;box-shadow:var(--shadow);padding:20px;margin-bottom:20px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin:0 0 12px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+.help{font-size:12px;color:var(--ink-soft);line-height:1.55;margin-bottom:12px;}
+.help b{color:var(--ink);}
+.dropzone{border:2px dashed var(--rule-strong);border-radius:6px;padding:22px 16px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;}
+.dropzone:hover,.dropzone.drag{background:rgba(0,0,0,0.03);border-color:var(--ink);}
+.dropzone .big{font-size:14.5px;font-weight:600;margin-bottom:4px;}
+.dropzone .small{font-size:12px;color:var(--ink-soft);}
+input[type=file]{display:none;}
+.field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:14px 0;}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin-bottom:4px;font-family:'IBM Plex Mono',monospace;}
+.field input,.field select{width:100%;padding:7px 9px;border:1.5px solid var(--rule-strong);border-radius:4px;font-size:13.5px;font-family:'IBM Plex Mono',monospace;background:#fff;color:var(--ink);}
+.field input:focus,.field select:focus{outline:none;border-color:var(--ink);}
+.btn{padding:9px 16px;border-radius:4px;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;font-weight:600;font-size:13.5px;font-family:inherit;}
+.btn:hover{opacity:.88;}
+.btn.ghost{background:transparent;color:var(--ink);}
+.btn.ghost:hover{background:rgba(0,0,0,0.06);}
+.btn.small{padding:4px 9px;font-size:12px;}
+.btn.danger{border-color:var(--red);color:var(--red);background:transparent;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+.badge{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.03em;padding:2px 8px;border-radius:10px;font-weight:600;}
+.badge.ok{background:var(--green-bg);color:var(--green-ink);}
+.badge.warn{background:var(--amber-bg);color:var(--amber);}
+.badge.err{background:var(--red-bg);color:var(--red);}
+.badge.info{background:var(--accent-bg);color:var(--accent);}
+.files{display:flex;flex-direction:column;gap:6px;margin-top:12px;font-size:12.5px;}
+.files .f{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.files .f .nm{font-family:'IBM Plex Mono',monospace;}
+.table-wrap{overflow:auto;border:1px solid var(--rule);border-radius:4px;}
+table.t{width:100%;border-collapse:collapse;font-size:13px;}
+table.t th{text-align:left;padding:8px 9px;border-bottom:1.5px solid var(--rule-strong);font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);background:#FAFAF8;white-space:nowrap;}
+table.t td{padding:7px 9px;border-bottom:1px solid var(--rule);vertical-align:middle;}
+table.t td.n,table.t th.n{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+table.t tr.total td{font-weight:700;background:#F4F3EF;border-top:1.5px solid var(--ink);}
+table.t tr.det td{background:#FAFAF8;font-size:12px;color:var(--ink-soft);}
+table.t input.cell{width:92px;padding:4px 6px;border:1px solid var(--rule-strong);border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;text-align:right;background:#fff;}
+table.t input.cell.pct{width:62px;}
+table.t select.cell{padding:3px;font-size:12px;border:1px solid var(--rule-strong);border-radius:3px;}
+.kpis{display:flex;gap:22px;flex-wrap:wrap;margin:6px 0 14px;}
+.kpi .k{color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.03em;font-family:'IBM Plex Mono',monospace;}
+.kpi .v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:17px;}
+.kpi .v.neg{color:var(--red);}
+.note{font-size:12px;line-height:1.5;padding:8px 11px;border-radius:4px;margin:8px 0;}
+.note.warn{background:var(--amber-bg);color:var(--amber);}
+.note.err{background:var(--red-bg);color:var(--red);}
+.note.info{background:var(--accent-bg);color:var(--accent);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:900px){.grid2{grid-template-columns:1fr;}}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.hidden{display:none !important;}
+.link{background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0;text-decoration:underline;font-family:inherit;}
+.opt{display:inline-flex;gap:6px;align-items:center;margin:3px 10px 3px 0;padding:4px 9px;border:1.5px solid var(--rule-strong);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;background:#fff;}
+.opt.sel{border-color:var(--ink);background:var(--ink);color:#fff;}
+footer{margin-top:30px;font-size:11.5px;color:var(--ink-soft);text-align:center;}
+@media print{
+  body{background:#fff;} .noprint,.dropzone,.btn-row,.btn,.link{display:none !important;}
+  .card{box-shadow:none;break-inside:avoid;} .app{padding:0;max-width:none;}
+  table.t input.cell,table.t select.cell{border:none;background:none;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <h1>GT Clínica — Distribuição de Lucros</h1>
+      <div class="sub">Soma a produção dos médicos (relatórios + demonstrativo Unimed), calcula as provisões, o valor a pagar aos conveniados e sugere a distribuição de lucros aos sócios. Os relatórios de cada mês ficam salvos neste navegador.</div>
+    </div>
+    <a class="backlink noprint" href="https://criconcontabilidade.github.io/Cricon-Ferramentas/">← Hub de Ferramentas</a>
+  </div>
+
+  <!-- 1. ARQUIVOS -->
+  <div class="card noprint" id="cardArquivos">
+    <div class="section-title">1 · Arquivos do mês</div>
+    <div class="help">Solte de uma vez: o <b>demonstrativo da Unimed</b> (PDF “3000009 - GT CLINICA…”), os <b>relatórios de exames de cada médico</b> (um PDF por médico/hospital) e o <b>extrato do Unicred</b> (saldo atual). Os arquivos são lidos no próprio navegador e identificados automaticamente.</div>
+    <label class="dropzone" id="dz">
+      <input type="file" id="fileInput" accept="application/pdf" multiple>
+      <div class="big">Arraste os PDFs aqui ou clique para escolher</div>
+      <div class="small">Demonstrativo Unimed · Relatórios dos médicos · Extrato bancário</div>
+    </label>
+    <div class="files" id="fileList"></div>
+    <div class="field-row">
+      <div class="field"><label>Competência (mês dos serviços)</label><input type="month" id="inComp"></div>
+      <div class="field"><label>Valor para Nota Fiscal (R$)</label><input type="text" id="inNF" inputmode="decimal" placeholder="do demonstrativo"></div>
+      <div class="field"><label>Saldo final do extrato (R$)</label><input type="text" id="inSaldo" inputmode="decimal" placeholder="do extrato"></div>
+    </div>
+    <div id="msgArquivos"></div>
+  </div>
+
+  <!-- 2. MÉDICOS -->
+  <div class="card" id="cardMedicos">
+    <div class="section-title">2 · Serviços dos médicos conveniados</div>
+    <div class="table-wrap"><table class="t" id="tbMedicos"></table></div>
+    <div id="msgMedicos"></div>
+  </div>
+
+  <!-- 3. PROVISÕES -->
+  <div class="card" id="cardProv">
+    <div class="section-title">3 · Provisões de despesas</div>
+    <div class="grid2">
+      <div><div class="table-wrap"><table class="t" id="tbProv"></table></div></div>
+      <div id="boxTrim"></div>
+    </div>
+    <div id="msgProv"></div>
+  </div>
+
+  <!-- 4. DISTRIBUIÇÃO -->
+  <div class="card" id="cardDist">
+    <div class="section-title">4 · Distribuição de lucros</div>
+    <div class="kpis" id="kpiDist"></div>
+    <div id="optDist"></div>
+    <div class="grid2" style="margin-top:12px">
+      <div class="table-wrap"><table class="t" id="tbSocios"></table></div>
+      <div id="boxFecho"></div>
+    </div>
+    <div id="msgDist"></div>
+  </div>
+
+  <!-- 5. SALVAR / HISTÓRICO -->
+  <div class="card">
+    <div class="section-title">5 · Salvar e relatórios anteriores</div>
+    <div class="btn-row noprint" style="margin-top:0">
+      <button class="btn" id="btSalvar">Salvar relatório do mês</button>
+      <button class="btn ghost" id="btXlsx">Baixar Excel</button>
+      <button class="btn ghost" id="btPrint">Imprimir / PDF</button>
+      <button class="btn ghost" id="btLimpar">Novo mês (limpar tela)</button>
+    </div>
+    <div id="msgSalvar" class="help" style="margin-top:10px"></div>
+    <div class="table-wrap" style="margin-top:8px"><table class="t" id="tbSalvos"></table></div>
+    <div class="btn-row noprint">
+      <button class="btn ghost small" id="btExport">Exportar backup (.json)</button>
+      <label class="btn ghost small" style="display:inline-block">Importar backup<input type="file" id="impFile" accept="application/json"></label>
+    </div>
+    <div class="help" style="margin-top:8px">Os relatórios salvos ficam no armazenamento deste navegador/computador. Use o backup (.json) para guardar uma cópia no Drive ou levar para outro computador.</div>
+  </div>
+
+  <!-- PARÂMETROS -->
+  <div class="card noprint">
+    <div class="section-title">Parâmetros</div>
+    <div class="field-row" id="boxParams"></div>
+    <div class="btn-row" style="margin-top:0"><button class="btn ghost small" id="btResetParams">Restaurar padrões</button></div>
+  </div>
+
+  <footer>Cricon Contabilidade · ferramenta de uso interno · os cálculos são estimativas para conferência — valide com a planilha “DISTRIBUIÇÃO DE LUCROS” antes de pagar.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- ============ NÚCLEO (sem DOM; testável em Node) ============ -->
+<script id="core">
+const MONEY=/^-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
+const parseBR=s=>{
+  if(typeof s==='number') return s;
+  s=String(s||'').replace(/R\$|\s/g,'').replace(/\./g,'').replace(',','.');
+  const n=parseFloat(s); return isNaN(n)?null:n;
+};
+const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const r2=n=>Math.round((n+Number.EPSILON)*100)/100;
+const sum=a=>a.reduce((x,y)=>x+y,0);
+
+const DEFAULT_CFG={
+  issPct:2, contabilidade:1400, proLabore:1442.69,
+  irpjBase:8, irpjAliq:25, irpjMetodo:'flat', csllBase:12, csllAliq:9,
+  reservaMin:70000, reservaMax:90000, passo:1000,
+  doctors:[
+    {id:'mauricio', nome:'Mauricio', re:'\\bmauricio\\b', trib:'LP', comissao:10, ret:6.15},
+    {id:'lays', nome:'Lays', re:'\\blays\\b', trib:'LP', comissao:0, ret:6.15},
+    {id:'marilia', nome:'Marilia', re:'\\bmarilia\\b', trib:'SN', comissao:0, ret:0},
+    {id:'luigi', nome:'Luigi', re:'\\bluigi\\b', trib:'LP', comissao:0, ret:6.15, fixo:45000},
+    {id:'leonardo', nome:'Leonardo Ghizi', re:'leonardo\\s+g|ghizi|ghizzi', trib:'SN', comissao:0, ret:0, fixo:35000},
+    {id:'eduardo', nome:'Eduardo', re:'\\beduardo\\b', trib:'SN', comissao:7.93, ret:0},
+    {id:'danyella', nome:'Danyella', re:'\\bdanyella\\b', trib:'LP', comissao:0, ret:6.15}
+  ],
+  socios:[
+    {nome:'Giovanny'},{nome:'Leonardo'},{nome:'Andre'},{nome:'Erica'},
+    {nome:'Gustavo', fixo:47765.19},{nome:'Cristiano', fixo:40378.98}
+  ]
+};
+// faturamento (valor p/ NF) de competências anteriores, vindo da planilha de distribuição
+const SEED_HIST={'2026-07':{nf:939219.25,origem:'planilha'},'2026-08':{nf:873308.16,origem:'planilha'}};
+
+/* ---------- leitura de PDF ---------- */
+async function lerPdf(pdfjsLib,data){
+  const doc=await pdfjsLib.getDocument({data,verbosity:0}).promise;
+  const pages=[];
+  for(let p=1;p<=doc.numPages;p++){
+    const pg=await doc.getPage(p);
+    const vp=pg.getViewport({scale:1});
+    const tc=await pg.getTextContent();
+    const items=tc.items.filter(i=>i.str.trim()).map(i=>{
+      const t=pdfjsLib.Util.transform(vp.transform,i.transform);
+      return {s:i.str.trim(),x:t[4],y:t[5],w:i.width};
+    });
+    pages.push(items);
+  }
+  return pages;
+}
+function linhas(items){
+  const it=[...items].sort((a,b)=>a.y-b.y||a.x-b.x);
+  const out=[];let cur=null;
+  for(const i of it){
+    if(!cur||Math.abs(i.y-cur.y)>3){cur={y:i.y,items:[]};out.push(cur);}
+    cur.items.push(i);
+  }
+  out.forEach(l=>{l.items.sort((a,b)=>a.x-b.x);l.text=l.items.map(i=>i.s).join(' ').replace(/\s+/g,' ').trim();});
+  return out;
+}
+function tipoPdf(pages){
+  const txt=norm(pages.map(p=>p.map(i=>i.s).join(' ')).join(' '));
+  if(txt.includes('rdmtrtv_medico_capa')||txt.includes('demonstrativo numero (extrato)')) return 'demonstrativo';
+  if(txt.includes('relacao de exames')) return 'relatorio';
+  if(txt.includes('saldo atual')&&txt.includes('extrato')) return 'extrato';
+  return 'desconhecido';
+}
+
+/* ---------- relatório de exames de um médico ---------- */
+function parseRelatorio(pages,arquivo){
+  const p1=pages[0];
+  const hosp=p1.find(i=>/hospital/i.test(i.s));
+  const lab=p1.find(i=>i.s==='Médico do Laudo');
+  let medico='';
+  if(lab){
+    const cand=p1.filter(i=>Math.abs(i.x-lab.x)<4&&i.y>lab.y+2&&!/^(Nº|Acomoda)/.test(i.s)).sort((a,b)=>a.y-b.y)[0];
+    if(cand) medico=cand.s;
+  }
+  const hv=p1.find(i=>i.s==='Vl Médico'),hc=p1.find(i=>i.s==='Convênio');
+  if(!hv||!hc) throw new Error('Cabeçalho “Vl Médico/Convênio” não encontrado');
+  const linhasOk=[],totais=[];
+  for(const items of pages){
+    for(const m of items.filter(i=>MONEY.test(i.s)&&i.x>hv.x-15&&i.x>hc.x+20)){
+      const c=items.find(i=>Math.abs(i.y-m.y)<5&&i.x>=hc.x-6&&i.x<hc.x+70&&!MONEY.test(i.s));
+      if(c) linhasOk.push({v:parseBR(m.s),c:c.s}); else totais.push(parseBR(m.s));
+    }
+  }
+  const porConvenio={};
+  linhasOk.forEach(r=>porConvenio[r.c]=r2((porConvenio[r.c]||0)+r.v));
+  const soma=r2(sum(linhasOk.map(r=>r.v)));
+  const impresso=totais.length?totais[totais.length-1]:null;
+  const total=impresso!=null?impresso:soma;
+  return {arquivo,medico:medico||arquivo,hospital:hosp?hosp.s:'?',total,soma,impresso,porConvenio,n:linhasOk.length,
+    aviso:(impresso!=null&&Math.abs(impresso-soma)>0.01)?`soma das linhas (${soma}) difere do total impresso (${impresso})`:''};
+}
+
+/* ---------- demonstrativo Unimed ---------- */
+function parseDemonstrativo(pages){
+  const out={competencia:null,valorNF:null,totalLiquido:null,secoes:[],retencoes:{},glosa:null,prestador:null};
+  let sec=null;
+  for(const items of pages){
+    for(const l of linhas(items)){
+      const comp=l.items.findIndex(i=>/^Compet/i.test(i.s));
+      if(comp>=0){const m=l.text.match(/Compet[^\d]*(\d{6})/);if(m)out.competencia=m[1];}
+      if(/Valor para Nota Fiscal/i.test(l.text)){const m=l.items.filter(i=>MONEY.test(i.s));if(m.length)out.valorNF=parseBR(m[0].s);continue;}
+      if(/^Total L[ií]quido|Total L[ií]quido/i.test(l.text)&&!/Benefici/i.test(l.text)){const m=l.items.filter(i=>MONEY.test(i.s));if(m.length&&out.totalLiquido==null)out.totalLiquido=parseBR(m[0].s);continue;}
+      const sinal=l.items.find(i=>(i.s==='+'||i.s==='-')&&i.x>255&&i.x<285);
+      if(sinal){
+        const nome=l.items.filter(i=>i.x<sinal.x-1).map(i=>i.s).join(' ').trim();
+        const vals=l.items.filter(i=>i.x>sinal.x&&MONEY.test(i.s)).map(i=>parseBR(i.s));
+        sec={nome,sinal:sinal.s,valor:vals.length?vals[0]:0,linhas:[]};
+        out.secoes.push(sec);
+        const n=norm(nome);
+        if(/retencao pis/.test(n))out.retencoes.pis=sec.valor;
+        else if(/retencao csll/.test(n))out.retencoes.csll=sec.valor;
+        else if(/retencao cofins/.test(n))out.retencoes.cofins=sec.valor;
+        else if(/^i\.r\.f/.test(n)||/\birrf\b/.test(n))out.retencoes.irrf=sec.valor;
+        else if(/glosa/.test(n))out.glosa=sec.valor;
+        continue;
+      }
+      if(!sec) continue;
+      const mv=l.items.filter(i=>MONEY.test(i.s));
+      const texto=l.text;
+      const m=texto.match(/^(.*?)(?:R\$)?\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})$/);
+      const nValores=(texto.match(/\d{1,3}(?:\.\d{3})*,\d{2}/g)||[]).length;
+      if(m&&nValores===1&&m[1].trim()&&!/^(Valor|Documento|Total|Importante|Benefici)/i.test(texto)){
+        let v=parseBR(m[2]);
+        if(v<0&&/[A-Za-zÀ-ÿ.]$/.test(m[1])) v=-v; // "Giovanny B G-22.158,79": o hífen é separador, não sinal
+        sec.linhas.push({texto:m[1].replace(/[-:\s]+$/,'').trim(),valor:v});
+      }
+    }
+  }
+  out.secoes.forEach(s=>{
+    s.somaLinhas=r2(sum(s.linhas.map(x=>x.valor)));
+  });
+  return out;
+}
+
+/* ---------- extrato Unicred ---------- */
+function parseExtrato(pages){
+  const txt=linhas(pages[0]).map(l=>l.text).join('\n');
+  const m=txt.match(/Saldo atual\s*R\$\s*(-?[\d.]+,\d{2})/i);
+  const per=txt.match(/Per[ií]odo de\s*(\d{2}\/\d{2}\/\d{4})\s*a\s*(\d{2}\/\d{2}\/\d{4})/i);
+  return {saldo:m?parseBR(m[1]):null,periodo:per?per[1]+' a '+per[2]:''};
+}
+
+/* ---------- cálculo ---------- */
+const ehAlim=s=>/aliment/.test(norm(s.nome));
+function linhasDoMedico(demo,d){
+  const re=new RegExp(d.re,'i');
+  const extras=[],alim=[];
+  if(!demo) return {extras,alim};
+  demo.secoes.forEach((s,si)=>{
+    const n=norm(s.nome);
+    s.linhas.forEach((l,li)=>{
+      if(!re.test(norm(l.texto))) return;
+      if(ehAlim(s)) alim.push({key:si+':'+li,secao:s.nome,texto:l.texto,valor:l.valor});
+      else if(s.sinal==='+'&&!/producao total/.test(n)) extras.push({key:si+':'+li,secao:s.nome,texto:l.texto,valor:l.valor});
+    });
+  });
+  return {extras,alim};
+}
+function ymAdd(ym,k){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+k,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+
+function calcular(st,cfg,hist){
+  const o2=(x,d)=>x==null||x===''?d:x;
+  const med=cfg.doctors.map(d=>{
+    const o=(st.docs||{})[d.id]||{};
+    const rels=(st.relatorios||[]).filter(r=>r.docId===d.id);
+    const totRel=r2(sum(rels.map(r=>r.total)));
+    const {extras,alim}=d.fixo!=null?{extras:[],alim:linhasDoMedico(st.demo,d).alim}:linhasDoMedico(st.demo,d);
+    const off=o.extraOff||{};
+    const extrasOn=extras.filter(e=>!off[e.key]);
+    const totExtras=r2(sum(extrasOn.map(e=>e.valor)));
+    const alimAuto=r2(sum(alim.map(a=>a.valor)));
+    const receita=d.fixo!=null?o2(o.fixo,d.fixo):r2(totRel+totExtras);
+    const pctCom=o2(o.comissao,d.comissao), pctRet=o2(o.ret,d.ret);
+    const comissao=r2(receita*pctCom/100);
+    const base=r2(receita-comissao);
+    const retencao=r2(base*pctRet/100);
+    const alimentacao=o2(o.alimentacao,alimAuto);
+    return {id:d.id,nome:d.nome,trib:o2(o.trib,d.trib),fixo:d.fixo!=null,rels,totRel,extras,totExtras,alim,alimAuto,
+      receita,pctCom,comissao,base,pctRet,retencao,alimentacao,pagar:r2(base-retencao-alimentacao),off};
+  });
+  const totMed={receita:r2(sum(med.map(m=>m.receita))),alimentacao:r2(sum(med.map(m=>m.alimentacao))),comissao:r2(sum(med.map(m=>m.comissao))),
+    retencao:r2(sum(med.map(m=>m.retencao))),pagar:r2(sum(med.map(m=>m.pagar)))};
+
+  /* provisões */
+  const P=st.prov||{};
+  const valorNF=st.valorNF||0;
+  const iss=r2(valorNF*cfg.issPct/100);
+  const crfIrrf=totMed.retencao;
+  // trimestre (competência fecha trimestre → paga no mês seguinte)
+  const comp=st.competencia||'';
+  const mes=comp?+comp.split('-')[1]:0;
+  const fechaTri=[3,6,9,12].includes(mes);
+  const tri={fecha:fechaTri,meses:[],receita:0,irrfRet:0,csllRet:0,irpjDev:0,csllDev:0,irpjPagar:0,csllPagar:0,total:0,faltando:[]};
+  if(comp){
+    for(let k=-2;k<=0;k++){
+      const ym=ymAdd(comp,k);
+      let nf=null,irrf=null,csll=null,orig='';
+      if(k===0){nf=valorNF;irrf=st.demo&&st.demo.retencoes.irrf!=null?st.demo.retencoes.irrf:r2(valorNF*0.015);csll=st.demo&&st.demo.retencoes.csll!=null?st.demo.retencoes.csll:r2(valorNF*0.01);orig='mês atual';}
+      else{
+        const h=hist[ym];
+        if(h&&h.nf!=null){nf=h.nf;irrf=h.irrf!=null?h.irrf:r2(nf*0.015);csll=h.csll!=null?h.csll:r2(nf*0.01);orig=h.origem||'histórico';}
+        else tri.faltando.push(ym);
+      }
+      tri.meses.push({ym,nf,irrf,csll,orig});
+    }
+    tri.receita=r2(sum(tri.meses.map(m=>m.nf||0)));
+    tri.irrfRet=r2(sum(tri.meses.map(m=>m.irrf||0)));
+    tri.csllRet=r2(sum(tri.meses.map(m=>m.csll||0)));
+    const baseIrpj=tri.receita*cfg.irpjBase/100;
+    tri.baseIrpj=r2(baseIrpj);
+    tri.irpjDev=cfg.irpjMetodo==='legal'?r2(baseIrpj*0.15+Math.max(0,baseIrpj-60000)*0.10):r2(baseIrpj*cfg.irpjAliq/100);
+    tri.csllDev=r2(tri.receita*cfg.csllBase/100*cfg.csllAliq/100);
+    tri.irpjPagar=r2(Math.max(0,tri.irpjDev-tri.irrfRet));
+    tri.csllPagar=r2(Math.max(0,tri.csllDev-tri.csllRet));
+    tri.total=fechaTri?r2(tri.irpjPagar+tri.csllPagar):0;
+  }
+  const lin=[
+    {k:'iss',nome:`ISS ${cfg.issPct}% sobre a NF`,auto:iss},
+    {k:'contab',nome:'Contabilidade (mensal)',auto:cfg.contabilidade},
+    {k:'crfirrf',nome:'CRF e IRRF retidos dos médicos (LP)',auto:crfIrrf},
+    {k:'irpjcsll',nome:'IRPJ e CSLL do trimestre',auto:tri.total},
+    {k:'outras',nome:'INSS / outras provisões',auto:0}
+  ].map(l=>{const ov=P[l.k];return {...l,valor:ov!=null&&ov!==''?ov:l.auto,manual:ov!=null&&ov!==''};});
+  const totProv=r2(sum(lin.map(l=>l.valor)));
+
+  /* distribuição */
+  const saldo=st.saldo||0;
+  const disponivel=r2(saldo-totProv-totMed.pagar);
+  const nSoc=cfg.socios.length;
+  const fixos=r2(sum(cfg.socios.filter(s=>s.fixo!=null).map(s=>s.fixo)));
+  const iguais=cfg.socios.filter(s=>s.fixo==null);
+  const proLab=r2(cfg.proLabore*nSoc);
+  const restante=r2(disponivel-fixos-proLab);
+  const opcoes=[];
+  if(iguais.length&&restante>0){
+    const passo=cfg.passo;
+    const xMin=Math.ceil(Math.max(0,(restante-cfg.reservaMax)/iguais.length)/passo)*passo;
+    const xMax=Math.floor((restante-cfg.reservaMin)/iguais.length/passo)*passo;
+    for(let x=xMin;x<=xMax;x+=passo) opcoes.push({x,sobra:r2(restante-x*iguais.length)});
+  }
+  const alvo=(cfg.reservaMin+cfg.reservaMax)/2;
+  let X=st.distX;
+  let auto=null;
+  if(opcoes.length) auto=opcoes.reduce((a,b)=>Math.abs(b.sobra-alvo)<Math.abs(a.sobra-alvo)?b:a).x;
+  else if(iguais.length) auto=Math.max(0,Math.floor((restante-cfg.reservaMin)/iguais.length/cfg.passo)*cfg.passo);
+  if(X==null) X=auto;
+  const socios=cfg.socios.map(s=>{const lucro=s.fixo!=null?s.fixo:X;return {nome:s.nome,fixo:s.fixo!=null,lucro,proLabore:cfg.proLabore,total:r2(lucro+cfg.proLabore)};});
+  const totLucros=r2(sum(socios.map(s=>s.lucro))), totSoc=r2(sum(socios.map(s=>s.total)));
+  const sobra=r2(restante-X*iguais.length);
+  const dist={saldo,disponivel,fixos,proLab,restante,opcoes,X,auto,socios,totLucros,totSoc,sobra,sobraComProv:r2(sobra+totProv)};
+  return {med,totMed,prov:{lin,total:totProv,iss,crfIrrf,tri,valorNF},dist};
+}
+
+if(typeof module!=='undefined') module.exports={lerPdf,tipoPdf,parseRelatorio,parseDemonstrativo,parseExtrato,calcular,DEFAULT_CFG,SEED_HIST,parseBR,norm};
+</script>
+
+<!-- ============ INTERFACE ============ -->
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const LS={cfg:'gtc_cfg_v1',hist:'gtc_hist_v1',saved:'gtc_saved_v1',draft:'gtc_draft_v1'};
+const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}};
+const $=id=>document.getElementById(id);
+const brl=n=>n==null||isNaN(n)?'—':n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const ymLabel=ym=>{if(!ym)return '—';const [y,m]=ym.split('-').map(Number);return MESES[m-1]+'/'+y;};
+
+let cfg=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),lsGet(LS.cfg,{}));
+let hist=Object.assign({},SEED_HIST,lsGet(LS.hist,{}));
+let saved=lsGet(LS.saved,{});
+const novoEstado=()=>({competencia:'',valorNF:null,saldo:null,relatorios:[],demo:null,extrato:null,docs:{},prov:{},distX:null,arquivos:[]});
+let st=Object.assign(novoEstado(),lsGet(LS.draft,{}));
+const abertos=new Set();
+let R=null;
+
+function persistDraft(){lsSet(LS.draft,st);}
+function matchDoc(nome,arquivo){
+  const n=norm(nome),f=norm(arquivo);
+  for(const d of cfg.doctors){const re=new RegExp(d.re,'i');if(re.test(n))return d.id;}
+  for(const d of cfg.doctors){const re=new RegExp(d.re,'i');if(re.test(f))return d.id;}
+  return null;
+}
+
+/* ---------- upload ---------- */
+async function processarArquivos(files){
+  const msgs=[];
+  for(const f of files){
+    try{
+      const buf=new Uint8Array(await f.arrayBuffer());
+      const pages=await lerPdf(pdfjsLib,buf);
+      const tipo=tipoPdf(pages);
+      if(tipo==='demonstrativo'){
+        const d=parseDemonstrativo(pages);
+        st.demo=d;
+        if(d.valorNF!=null) st.valorNF=d.valorNF;
+        if(d.competencia) st.competencia=d.competencia.slice(0,4)+'-'+d.competencia.slice(4);
+        upsertArquivo(f.name,'demonstrativo',`competência ${d.competencia||'?'} · NF ${brl(d.valorNF)}`,'ok');
+      }else if(tipo==='relatorio'){
+        const r=parseRelatorio(pages,f.name);
+        r.docId=matchDoc(r.medico,f.name);
+        st.relatorios=st.relatorios.filter(x=>!(x.docId===r.docId&&x.hospital===r.hospital&&x.medico===r.medico));
+        st.relatorios.push(r);
+        upsertArquivo(f.name,'relatório',`${r.medico} · ${r.hospital} · ${brl(r.total)}`+(r.docId?'':' · médico não reconhecido'),r.docId&&!r.aviso?'ok':'warn');
+      }else if(tipo==='extrato'){
+        const e=parseExtrato(pages);
+        st.extrato=e;
+        if(e.saldo!=null) st.saldo=e.saldo;
+        upsertArquivo(f.name,'extrato',`saldo atual ${brl(e.saldo)} · ${e.periodo}`,e.saldo!=null?'ok':'warn');
+      }else upsertArquivo(f.name,'?','tipo de PDF não reconhecido','err');
+    }catch(err){console.error(err);upsertArquivo(f.name,'?','erro ao ler: '+err.message,'err');}
+  }
+  persistDraft();renderAll();
+}
+function upsertArquivo(nome,tipo,info,cls){
+  st.arquivos=st.arquivos.filter(a=>a.nome!==nome);
+  st.arquivos.push({nome,tipo,info,cls});
+}
+
+/* ---------- render ---------- */
+function renderAll(){
+  R=calcular(st,cfg,hist);
+  renderArquivos();renderMedicos();renderProv();renderDist();renderSalvos();renderParams();
+}
+function renderArquivos(){
+  $('fileList').innerHTML=st.arquivos.map(a=>`<div class="f"><span class="badge ${a.cls}">${esc(a.tipo)}</span><span class="nm">${esc(a.nome)}</span><span>${esc(a.info)}</span></div>`).join('');
+  $('inComp').value=st.competencia||'';
+  const setIfIdle=(id,v)=>{const el=$(id);if(document.activeElement!==el)el.value=v==null?'':brl(v);};
+  setIfIdle('inNF',st.valorNF);setIfIdle('inSaldo',st.saldo);
+  const avisos=[];
+  const falt=cfg.doctors.filter(d=>d.fixo==null&&!st.relatorios.some(r=>r.docId===d.id));
+  if(st.relatorios.length&&falt.length) avisos.push(`<div class="note warn">Sem relatório para: <b>${falt.map(d=>esc(d.nome)).join(', ')}</b>.</div>`);
+  st.relatorios.filter(r=>!r.docId).forEach(r=>avisos.push(`<div class="note err">Médico “${esc(r.medico)}” (${esc(r.arquivo)}) não corresponde a ninguém da tabela — não entrou na soma.</div>`));
+  st.relatorios.filter(r=>r.aviso).forEach(r=>avisos.push(`<div class="note warn">${esc(r.arquivo)}: ${esc(r.aviso)}.</div>`));
+  $('msgArquivos').innerHTML=avisos.join('');
+}
+function renderMedicos(){
+  const head=`<tr><th>Nome do profissional</th><th>Tributação</th><th class="n">Notas fiscais (receita)</th><th class="n">Alimentação</th><th class="n">Comissão GT</th><th class="n">Retenções</th><th class="n">Valor a pagar</th></tr>`;
+  const rows=R.med.map(m=>{
+    const aberto=abertos.has(m.id);
+    const recCell=m.fixo?`<input class="cell" data-doc="${m.id}" data-f="fixo" value="${brl(m.receita)}">`:brl(m.receita);
+    let r=`<tr><td><button class="link" data-toggle="${m.id}">${aberto?'▾':'▸'}</button> <b>${esc(m.nome)}</b></td>
+      <td><select class="cell" data-doc="${m.id}" data-f="trib"><option${m.trib==='LP'?' selected':''}>LP</option><option${m.trib==='SN'?' selected':''}>SN</option></select></td>
+      <td class="n">${recCell}</td>
+      <td class="n"><input class="cell" data-doc="${m.id}" data-f="alimentacao" value="${brl(m.alimentacao)}"></td>
+      <td class="n">${brl(m.comissao)}<br><span style="font-size:11px;color:var(--ink-soft)"><input class="cell pct" data-doc="${m.id}" data-f="comissao" value="${String(m.pctCom).replace('.',',')}">%</span></td>
+      <td class="n">${brl(m.retencao)}<br><span style="font-size:11px;color:var(--ink-soft)"><input class="cell pct" data-doc="${m.id}" data-f="ret" value="${String(m.pctRet).replace('.',',')}">%</span></td>
+      <td class="n"><b>${brl(m.pagar)}</b></td></tr>`;
+    if(aberto){
+      let d=`<b>Composição da receita</b> — NF líquida de comissão: R$ ${brl(m.base)}<br>`;
+      if(m.fixo) d+='Valor fixo mensal.<br>';
+      else{
+        d+=m.rels.length?m.rels.map(x=>`Relatório ${esc(x.hospital)} (${esc(x.medico)}): R$ ${brl(x.total)} <span style="opacity:.7">[${Object.entries(x.porConvenio).map(([k,v])=>esc(k)+' '+brl(v)).join(' · ')}]</span>`).join('<br>')+'<br>':'<i>Nenhum relatório carregado para este médico.</i><br>';
+        if(m.extras.length){
+          d+='<b>Demais lançamentos do demonstrativo Unimed</b> (marque para somar):<br>'+m.extras.map(e=>`<label><input type="checkbox" data-extra="${m.id}" data-key="${e.key}"${m.off[e.key]?'':' checked'}> ${esc(e.secao)} — ${esc(e.texto)}: R$ ${brl(e.valor)}</label>`).join('<br>');
+        }
+      }
+      if(m.alim.length) d+='<br><b>Alimentação (demonstrativo)</b>: '+m.alim.map(a=>`${esc(a.secao.replace(/DÉBITO CONSUMO /i,''))} R$ ${brl(a.valor)}`).join(' · ');
+      r+=`<tr class="det"><td colspan="7">${d}</td></tr>`;
+    }
+    return r;
+  }).join('');
+  const t=R.totMed;
+  $('tbMedicos').innerHTML=head+rows+`<tr class="total"><td>TOTAL</td><td></td><td class="n">${brl(t.receita)}</td><td class="n">${brl(t.alimentacao)}</td><td class="n">${brl(t.comissao)}</td><td class="n">${brl(t.retencao)}</td><td class="n">${brl(t.pagar)}</td></tr>`;
+  const notes=[];
+  if(st.demo){
+    st.demo.secoes.forEach(s=>{
+      const doc=cfg.doctors.some(d=>d.fixo==null&&s.linhas.some(l=>new RegExp(d.re,'i').test(norm(l.texto))));
+      if(doc&&s.sinal==='+'&&!/aliment/.test(norm(s.nome))&&Math.abs(s.somaLinhas-s.valor)>0.05&&s.linhas.length>3&&s.somaLinhas<s.valor){
+        notes.push(`<div class="note warn">Seção “${esc(s.nome)}”: as linhas lidas somam R$ ${brl(s.somaLinhas)}, mas o total da seção é R$ ${brl(s.valor)} (diferença R$ ${brl(r2(s.valor-s.somaLinhas))}). Alguma linha vem cortada no PDF — confira se é de um dos médicos.</div>`);
+      }
+    });
+  }
+  $('msgMedicos').innerHTML=notes.join('')+`<div class="help" style="margin-top:8px">Receita = total de cada relatório de exames (todos os convênios) + lançamentos do demonstrativo Unimed. Retenção incide sobre a NF já líquida da comissão; alimentação é descontada do valor a pagar. Clique em ▸ para ver/ajustar a composição.</div>`;
+}
+function renderProv(){
+  const P=R.prov;
+  $('tbProv').innerHTML=`<tr><th>Provisão</th><th class="n">Valor (R$)</th></tr>`+P.lin.map(l=>`<tr><td>${esc(l.nome)}${l.manual?' <span class="badge warn">manual</span>':''}</td><td class="n"><input class="cell" data-prov="${l.k}" value="${brl(l.valor)}"></td></tr>`).join('')+`<tr class="total"><td>TOTAL DE PROVISÕES</td><td class="n">${brl(P.total)}</td></tr>`;
+  const t=P.tri;
+  let b=`<div class="help"><b>IRPJ/CSLL — trimestre ${t.meses.length?ymLabel(t.meses[0].ym)+' a '+ymLabel(t.meses[2].ym):''}</b></div>`;
+  if(t.meses.length){
+    b+=`<div class="table-wrap"><table class="t"><tr><th>Competência</th><th class="n">Valor NF</th><th class="n">IRRF retido</th><th class="n">CSLL retida</th></tr>`+
+      t.meses.map((m,i)=>`<tr><td>${ymLabel(m.ym)} <span class="badge info">${esc(m.orig||'faltando')}</span></td><td class="n">${i===2?brl(m.nf):`<input class="cell" data-hist="${m.ym}" value="${m.nf==null?'':brl(m.nf)}">`}</td><td class="n">${brl(m.irrf)}</td><td class="n">${brl(m.csll)}</td></tr>`).join('')+
+      `<tr class="total"><td>Trimestre</td><td class="n">${brl(t.receita)}</td><td class="n">${brl(t.irrfRet)}</td><td class="n">${brl(t.csllRet)}</td></tr></table></div>`;
+    b+=`<div class="help" style="margin-top:8px">IRPJ devido (${cfg.irpjBase}% × ${cfg.irpjMetodo==='legal'?'15% + adicional 10% s/ excedente de R$ 60 mil':cfg.irpjAliq+'%'}): <b>R$ ${brl(t.irpjDev)}</b> − IRRF retido = <b>R$ ${brl(t.irpjPagar)}</b><br>CSLL devida (${cfg.csllBase}% × ${cfg.csllAliq}%): <b>R$ ${brl(t.csllDev)}</b> − CSLL retida = <b>R$ ${brl(t.csllPagar)}</b></div>`;
+    if(!t.fecha) b+=`<div class="note info">A competência ${ymLabel(st.competencia)} não fecha trimestre — IRPJ/CSLL só são pagos no mês seguinte ao fim do trimestre (mar/jun/set/dez). Nada provisionado aqui.</div>`;
+    if(t.faltando.length) b+=`<div class="note err">Informe o faturamento de ${t.faltando.map(ymLabel).join(', ')} para calcular o trimestre.</div>`;
+  }else b+='<div class="note info">Informe a competência para calcular o trimestre.</div>';
+  $('boxTrim').innerHTML=b;
+  $('msgProv').innerHTML=`<div class="help" style="margin-top:8px">CRF (PIS 0,65% + COFINS 3% + CSLL 1%) e IRRF (1,5%) são os 6,15% retidos dos médicos LP — a clínica recolhe. A linha “INSS / outras” fica em zero por padrão (a planilha antiga provisionava INSS ali).</div>`;
+}
+function renderDist(){
+  const D=R.dist;
+  const kp=(k,v,neg)=>`<div class="kpi"><div class="k">${k}</div><div class="v${neg?' neg':''}">${v}</div></div>`;
+  $('kpiDist').innerHTML=kp('Saldo do extrato','R$ '+brl(D.saldo))+kp('− Provisões','R$ '+brl(R.prov.total))+kp('− Conveniados','R$ '+brl(R.totMed.pagar))+kp('= Disponível','R$ '+brl(D.disponivel),D.disponivel<0)+kp('− Fixos + pró-labore','R$ '+brl(D.fixos+D.proLab))+kp('= A repartir','R$ '+brl(D.restante),D.restante<0);
+  const iguais=cfg.socios.filter(s=>s.fixo==null).length;
+  let o=`<div class="help"><b>Valor por sócio (${iguais} sócios em partes iguais)</b> — escolha a opção; a sobra no banco (já descontadas as provisões) deve ficar entre R$ ${brl(cfg.reservaMin)} e R$ ${brl(cfg.reservaMax)}:</div>`;
+  if(D.opcoes.length) o+=D.opcoes.map(x=>`<span class="opt${x.x===D.X?' sel':''}" data-x="${x.x}">${brl(x.x)} <span style="opacity:.7">sobra ${brl(x.sobra)}</span></span>`).join('');
+  else o+='<div class="note warn">Nenhum valor redondo mantém a sobra dentro da faixa. Ajuste manualmente abaixo.</div>';
+  o+=` <span class="field" style="display:inline-block;margin-left:8px"><input type="text" id="inX" inputmode="decimal" value="${brl(D.X)}" style="width:130px"></span> <button class="link" id="btAutoX">automático</button>`;
+  $('optDist').innerHTML=o;
+  $('tbSocios').innerHTML=`<tr><th>Sócio</th><th class="n">Lucros</th><th class="n">Pró-labore</th><th class="n">Total</th></tr>`+D.socios.map(s=>`<tr><td>${esc(s.nome)}${s.fixo?' <span class="badge info">fixo</span>':''}</td><td class="n">${brl(s.lucro)}</td><td class="n">${brl(s.proLabore)}</td><td class="n">${brl(s.total)}</td></tr>`).join('')+`<tr class="total"><td>TOTAL</td><td class="n">${brl(D.totLucros)}</td><td class="n">${brl(D.proLab)}</td><td class="n">${brl(D.totSoc)}</td></tr>`;
+  const ok=D.sobra>=cfg.reservaMin&&D.sobra<=cfg.reservaMax;
+  $('boxFecho').innerHTML=`<div class="table-wrap"><table class="t">
+    <tr><td>Saldo bancário</td><td class="n">${brl(D.saldo)}</td></tr>
+    <tr><td>(−) Pagamento aos conveniados</td><td class="n">${brl(R.totMed.pagar)}</td></tr>
+    <tr><td>(−) Distribuição aos sócios (lucros + pró-labore)</td><td class="n">${brl(D.totSoc)}</td></tr>
+    <tr><td>(−) Provisões de despesas</td><td class="n">${brl(R.prov.total)}</td></tr>
+    <tr class="total"><td>Saldo após todos os pagamentos ${ok?'<span class="badge ok">na faixa</span>':'<span class="badge warn">fora da faixa</span>'}</td><td class="n${D.sobra<0?' neg':''}">${brl(D.sobra)}</td></tr></table></div>`;
+  const msgs=[];
+  if(!st.saldo) msgs.push('<div class="note warn">Informe o saldo final do extrato.</div>');
+  if(D.sobra<0) msgs.push('<div class="note err">Saldo insuficiente: as saídas superam o saldo do extrato.</div>');
+  $('msgDist').innerHTML=msgs.join('')+`<div class="help" style="margin-top:8px">Fixos (editáveis em Parâmetros): ${cfg.socios.filter(s=>s.fixo!=null).map(s=>esc(s.nome)+' R$ '+brl(s.fixo)).join(' · ')}. Pró-labore de R$ ${brl(cfg.proLabore)} para cada um dos ${cfg.socios.length} sócios.</div>`;
+}
+function renderSalvos(){
+  const keys=Object.keys(saved).sort().reverse();
+  $('tbSalvos').innerHTML=`<tr><th>Competência</th><th>Distribuição em</th><th class="n">Saldo</th><th class="n">Conveniados</th><th class="n">Provisões</th><th class="n">Lucros/sócio</th><th>Salvo em</th><th class="noprint"></th></tr>`+
+    (keys.length?keys.map(k=>{const s=saved[k],r=s.resumo;return `<tr><td><b>${ymLabel(k)}</b></td><td>${ymLabel(ymAdd(k,1))}</td><td class="n">${brl(r.saldo)}</td><td class="n">${brl(r.medicos)}</td><td class="n">${brl(r.provisoes)}</td><td class="n">${brl(r.porSocio)}</td><td>${new Date(s.salvoEm).toLocaleString('pt-BR')}</td><td class="noprint"><button class="btn ghost small" data-abrir="${k}">Abrir</button> <button class="btn danger small" data-del="${k}">Excluir</button></td></tr>`;}).join(''):`<tr><td colspan="8" style="color:var(--ink-soft)">Nenhum relatório salvo ainda.</td></tr>`);
+}
+function renderParams(){
+  if($('boxParams').dataset.built) return;
+  $('boxParams').dataset.built=1;
+  const f=(label,key,val)=>`<div class="field"><label>${label}</label><input data-param="${key}" value="${String(val).replace('.',',')}"></div>`;
+  $('boxParams').innerHTML=f('ISS (%)','issPct',cfg.issPct)+f('Contabilidade mensal (R$)','contabilidade',cfg.contabilidade)+f('Pró-labore por sócio (R$)','proLabore',cfg.proLabore)+
+    f('IRPJ — base presumida (%)','irpjBase',cfg.irpjBase)+f('IRPJ — alíquota (%)','irpjAliq',cfg.irpjAliq)+f('CSLL — base presumida (%)','csllBase',cfg.csllBase)+f('CSLL — alíquota (%)','csllAliq',cfg.csllAliq)+
+    `<div class="field"><label>IRPJ — método</label><select data-param="irpjMetodo"><option value="flat"${cfg.irpjMetodo==='flat'?' selected':''}>Alíquota única (ex.: 25%)</option><option value="legal"${cfg.irpjMetodo==='legal'?' selected':''}>15% + 10% s/ excedente de R$ 60 mil</option></select></div>`+
+    f('Sobra mínima no banco (R$)','reservaMin',cfg.reservaMin)+f('Sobra máxima no banco (R$)','reservaMax',cfg.reservaMax)+f('Passo do valor por sócio (R$)','passo',cfg.passo)+
+    cfg.socios.filter(s=>s.fixo!=null).map((s,i)=>f('Fixo — '+s.nome+' (R$)','socio:'+s.nome,s.fixo)).join('')+
+    cfg.doctors.filter(d=>d.fixo!=null).map(d=>f('Fixo mensal — '+d.nome+' (R$)','doc:'+d.id,d.fixo)).join('');
+}
+
+/* ---------- salvar / abrir ---------- */
+function resumo(){return {saldo:R.dist.saldo,medicos:R.totMed.pagar,provisoes:R.prov.total,porSocio:R.dist.X,sobra:R.dist.sobra,valorNF:st.valorNF};}
+function salvar(){
+  if(!st.competencia){$('msgSalvar').innerHTML='<span style="color:var(--red)">Informe a competência antes de salvar.</span>';return;}
+  if(saved[st.competencia]&&!confirm('Já existe um relatório salvo para '+ymLabel(st.competencia)+'. Substituir?'))return;
+  saved[st.competencia]={salvoEm:new Date().toISOString(),estado:JSON.parse(JSON.stringify(st)),cfg:JSON.parse(JSON.stringify(cfg)),resumo:resumo(),resultado:JSON.parse(JSON.stringify(R))};
+  hist[st.competencia]={nf:st.valorNF,irrf:st.demo&&st.demo.retencoes.irrf!=null?st.demo.retencoes.irrf:null,csll:st.demo&&st.demo.retencoes.csll!=null?st.demo.retencoes.csll:null,origem:'relatório salvo'};
+  const ok=lsSet(LS.saved,saved)&&lsSet(LS.hist,hist);
+  $('msgSalvar').innerHTML=ok?`<span style="color:var(--green-ink)">Relatório de ${ymLabel(st.competencia)} salvo neste navegador.</span>`:'<span style="color:var(--red)">Não foi possível gravar no navegador — baixe o backup (.json).</span>';
+  renderAll();
+}
+
+/* ---------- excel ---------- */
+function exportXlsx(){
+  const wb=XLSX.utils.book_new();
+  const a=[['NOME DO PROFISSIONAL','TRIBUTAÇÃO','NOTAS FISCAIS (RECEITA)','ALIMENTAÇÃO','COMISSÃO GT','RETENÇÕES','VALOR A PAGAR']];
+  R.med.forEach(m=>a.push([m.nome,m.trib,m.receita,m.alimentacao,m.comissao,m.retencao,m.pagar]));
+  a.push(['TOTAL','',R.totMed.receita,R.totMed.alimentacao,R.totMed.comissao,R.totMed.retencao,R.totMed.pagar]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a),'Médicos');
+  const p=[['PROVISÃO','VALOR']];R.prov.lin.forEach(l=>p.push([l.nome,l.valor]));p.push(['TOTAL',R.prov.total]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(p),'Provisões');
+  const D=R.dist;
+  const d=[['SÓCIO','LUCROS','PRÓ-LABORE','TOTAL']];D.socios.forEach(s=>d.push([s.nome,s.lucro,s.proLabore,s.total]));d.push(['TOTAL',D.totLucros,D.proLab,D.totSoc]);
+  d.push([],['Saldo do extrato',D.saldo],['Provisões',R.prov.total],['Conveniados',R.totMed.pagar],['Sobra após pagamentos',D.sobra]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(d),'Distribuição');
+  XLSX.writeFile(wb,`GT Clinica - Distribuicao ${st.competencia||''}.xlsx`);
+}
+
+/* ---------- eventos ---------- */
+const dz=$('dz');
+$('fileInput').addEventListener('change',e=>{processarArquivos([...e.target.files]);e.target.value='';});
+['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+dz.addEventListener('drop',e=>processarArquivos([...e.dataTransfer.files].filter(f=>/pdf$/i.test(f.name)||f.type==='application/pdf')));
+
+$('inComp').addEventListener('change',e=>{st.competencia=e.target.value;persistDraft();renderAll();});
+$('inNF').addEventListener('change',e=>{st.valorNF=parseBR(e.target.value);persistDraft();renderAll();});
+$('inSaldo').addEventListener('change',e=>{st.saldo=parseBR(e.target.value);persistDraft();renderAll();});
+
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.doc){
+    const id=t.dataset.doc,f=t.dataset.f;
+    st.docs[id]=st.docs[id]||{};
+    st.docs[id][f]=f==='trib'?t.value:parseBR(t.value);
+    if(f==='trib'){const d=cfg.doctors.find(x=>x.id===id);if(t.value==='SN'&&d.trib==='LP')st.docs[id].ret=0;else if(t.value==='LP')st.docs[id].ret=null;}
+    persistDraft();renderAll();
+  }else if(t.dataset.extra){
+    const id=t.dataset.extra;st.docs[id]=st.docs[id]||{};st.docs[id].extraOff=st.docs[id].extraOff||{};
+    st.docs[id].extraOff[t.dataset.key]=!t.checked;persistDraft();renderAll();
+  }else if(t.dataset.prov){
+    const v=t.value.trim();st.prov[t.dataset.prov]=v===''?null:parseBR(v);persistDraft();renderAll();
+  }else if(t.dataset.hist){
+    const v=parseBR(t.value);hist[t.dataset.hist]=v==null?undefined:{nf:v,origem:'manual'};if(v==null)delete hist[t.dataset.hist];
+    lsSet(LS.hist,hist);renderAll();
+  }else if(t.id==='inX'){
+    st.distX=parseBR(t.value);persistDraft();renderAll();
+  }else if(t.dataset.param){
+    const k=t.dataset.param;
+    if(k==='irpjMetodo')cfg.irpjMetodo=t.value;
+    else if(k.startsWith('socio:')){const s=cfg.socios.find(x=>x.nome===k.slice(6));s.fixo=parseBR(t.value);}
+    else if(k.startsWith('doc:')){const d=cfg.doctors.find(x=>x.id===k.slice(4));d.fixo=parseBR(t.value);}
+    else cfg[k]=parseBR(t.value);
+    lsSet(LS.cfg,cfg);renderAll();
+  }
+});
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-toggle],[data-x],[data-abrir],[data-del],#btAutoX');
+  if(!t)return;
+  if(t.dataset.toggle){const id=t.dataset.toggle;abertos.has(id)?abertos.delete(id):abertos.add(id);renderMedicos();}
+  else if(t.dataset.x){st.distX=+t.dataset.x;persistDraft();renderAll();}
+  else if(t.id==='btAutoX'){st.distX=null;persistDraft();renderAll();}
+  else if(t.dataset.abrir){
+    const s=saved[t.dataset.abrir];if(!s)return;
+    if(!confirm('Abrir o relatório de '+ymLabel(t.dataset.abrir)+'? A tela atual será substituída.'))return;
+    st=Object.assign(novoEstado(),JSON.parse(JSON.stringify(s.estado)));persistDraft();renderAll();window.scrollTo({top:0,behavior:'smooth'});
+  }else if(t.dataset.del){
+    if(!confirm('Excluir o relatório salvo de '+ymLabel(t.dataset.del)+'?'))return;
+    delete saved[t.dataset.del];lsSet(LS.saved,saved);renderSalvos();
+  }
+});
+$('btSalvar').addEventListener('click',salvar);
+$('btXlsx').addEventListener('click',exportXlsx);
+$('btPrint').addEventListener('click',()=>window.print());
+$('btLimpar').addEventListener('click',()=>{if(!confirm('Limpar a tela para um novo mês? (relatórios salvos são mantidos)'))return;st=novoEstado();persistDraft();renderAll();});
+$('btResetParams').addEventListener('click',()=>{if(!confirm('Restaurar os parâmetros padrão?'))return;cfg=JSON.parse(JSON.stringify(DEFAULT_CFG));lsSet(LS.cfg,cfg);$('boxParams').dataset.built='';renderAll();});
+$('btExport').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify({versao:1,saved,hist,cfg},null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gt-clinica-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+});
+$('impFile').addEventListener('change',async e=>{
+  try{
+    const j=JSON.parse(await e.target.files[0].text());
+    if(!j.saved)throw new Error('arquivo inválido');
+    saved=Object.assign(saved,j.saved);hist=Object.assign(hist,j.hist||{});if(j.cfg){cfg=Object.assign(cfg,j.cfg);lsSet(LS.cfg,cfg);$('boxParams').dataset.built='';}
+    lsSet(LS.saved,saved);lsSet(LS.hist,hist);renderAll();$('msgSalvar').innerHTML='<span style="color:var(--green-ink)">Backup importado.</span>';
+  }catch(err){alert('Não foi possível importar: '+err.message);}
+  e.target.value='';
+});
+
+renderAll();
+</script>
+</body>
+</html>
