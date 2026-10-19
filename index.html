@@ -199,7 +199,7 @@ const DEFAULT_CFG={
   ],
   socios:[
     {nome:'Giovanny'},{nome:'Leonardo'},{nome:'Andre'},{nome:'Erica'},
-    {nome:'Gustavo', fixo:47765.19},{nome:'Cristiano', fixo:40378.98}
+    {nome:'Gustavo', fixo:47765.19},{nome:'Cristiano', fixo:40287.31}
   ]
 };
 // faturamento (valor p/ NF) de competências anteriores, vindo da planilha de distribuição
@@ -452,6 +452,7 @@ const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agos
 const ymLabel=ym=>{if(!ym)return '—';const [y,m]=ym.split('-').map(Number);return MESES[m-1]+'/'+y;};
 
 let cfg=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),lsGet(LS.cfg,{}));
+cfg.socios.forEach(x=>{if(x.nome==='Cristiano'&&x.fixo===40378.98)x.fixo=40287.31;}); // valor antigo gravado no navegador
 let hist=Object.assign({},SEED_HIST,lsGet(LS.hist,{}));
 let saved=lsGet(LS.saved,{});
 const novoEstado=()=>({competencia:'',valorNF:null,saldo:null,inss:null,relatorios:[],demo:null,extrato:null,docs:{},prov:{},distX:null,arquivos:[]});
