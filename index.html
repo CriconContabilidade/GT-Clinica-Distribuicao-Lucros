@@ -26,7 +26,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex San
 .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin:0 0 12px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
 .help{font-size:12px;color:var(--ink-soft);line-height:1.55;margin-bottom:12px;}
 .help b{color:var(--ink);}
-.dropzone{border:2px dashed var(--rule-strong);border-radius:6px;padding:22px 16px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;}
+.dropzone{display:block;border:2px dashed var(--rule-strong);border-radius:6px;padding:22px 16px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;}
 .dropzone:hover,.dropzone.drag{background:rgba(0,0,0,0.03);border-color:var(--ink);}
 .dropzone .big{font-size:14.5px;font-weight:600;margin-bottom:4px;}
 .dropzone .small{font-size:12px;color:var(--ink-soft);}
@@ -106,7 +106,8 @@ footer{margin-top:30px;font-size:11.5px;color:var(--ink-soft);text-align:center;
     <div class="field-row">
       <div class="field"><label>Competência (mês dos serviços)</label><input type="month" id="inComp"></div>
       <div class="field"><label>Valor para Nota Fiscal (R$)</label><input type="text" id="inNF" inputmode="decimal" placeholder="do demonstrativo"></div>
-      <div class="field"><label>Saldo final do extrato (R$)</label><input type="text" id="inSaldo" inputmode="decimal" placeholder="do extrato"></div>
+      <div class="field"><label>Saldo final do extrato (R$)</label><input type="text" id="inSaldo" inputmode="decimal" placeholder="lido do extrato"></div>
+      <div class="field"><label>Valor do INSS (R$)</label><input type="text" id="inINSS" inputmode="decimal" placeholder="ex.: 3.015,06"></div>
     </div>
     <div id="msgArquivos"></div>
   </div>
@@ -395,7 +396,7 @@ function calcular(st,cfg,hist){
     {k:'contab',nome:'Contabilidade (mensal)',auto:cfg.contabilidade},
     {k:'crfirrf',nome:'CRF e IRRF retidos dos médicos (LP)',auto:crfIrrf},
     {k:'irpjcsll',nome:'IRPJ e CSLL do trimestre',auto:tri.total},
-    {k:'outras',nome:'INSS / outras provisões',auto:0}
+    {k:'outras',nome:'INSS',auto:st.inss||0}
   ].map(l=>{const ov=P[l.k];return {...l,valor:ov!=null&&ov!==''?ov:l.auto,manual:ov!=null&&ov!==''};});
   const totProv=r2(sum(lin.map(l=>l.valor)));
 
@@ -445,7 +446,7 @@ const ymLabel=ym=>{if(!ym)return '—';const [y,m]=ym.split('-').map(Number);ret
 let cfg=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),lsGet(LS.cfg,{}));
 let hist=Object.assign({},SEED_HIST,lsGet(LS.hist,{}));
 let saved=lsGet(LS.saved,{});
-const novoEstado=()=>({competencia:'',valorNF:null,saldo:null,relatorios:[],demo:null,extrato:null,docs:{},prov:{},distX:null,arquivos:[]});
+const novoEstado=()=>({competencia:'',valorNF:null,saldo:null,inss:null,relatorios:[],demo:null,extrato:null,docs:{},prov:{},distX:null,arquivos:[]});
 let st=Object.assign(novoEstado(),lsGet(LS.draft,{}));
 const abertos=new Set();
 let R=null;
@@ -502,12 +503,13 @@ function renderArquivos(){
   $('fileList').innerHTML=st.arquivos.map(a=>`<div class="f"><span class="badge ${a.cls}">${esc(a.tipo)}</span><span class="nm">${esc(a.nome)}</span><span>${esc(a.info)}</span></div>`).join('');
   $('inComp').value=st.competencia||'';
   const setIfIdle=(id,v)=>{const el=$(id);if(document.activeElement!==el)el.value=v==null?'':brl(v);};
-  setIfIdle('inNF',st.valorNF);setIfIdle('inSaldo',st.saldo);
+  setIfIdle('inNF',st.valorNF);setIfIdle('inINSS',st.inss);setIfIdle('inSaldo',st.saldo);
   const avisos=[];
   const falt=cfg.doctors.filter(d=>d.fixo==null&&!st.relatorios.some(r=>r.docId===d.id));
   if(st.relatorios.length&&falt.length) avisos.push(`<div class="note warn">Sem relatório para: <b>${falt.map(d=>esc(d.nome)).join(', ')}</b>.</div>`);
   st.relatorios.filter(r=>!r.docId).forEach(r=>avisos.push(`<div class="note err">Médico “${esc(r.medico)}” (${esc(r.arquivo)}) não corresponde a ninguém da tabela — não entrou na soma.</div>`));
   st.relatorios.filter(r=>r.aviso).forEach(r=>avisos.push(`<div class="note warn">${esc(r.arquivo)}: ${esc(r.aviso)}.</div>`));
+  if(!st.extrato) avisos.push('<div class="note warn">Extrato bancário ainda não carregado — o saldo vem dele (o campo só deve ser preenchido à mão se o PDF não puder ser lido).</div>');
   $('msgArquivos').innerHTML=avisos.join('');
 }
 function renderMedicos(){
@@ -563,7 +565,7 @@ function renderProv(){
     if(t.faltando.length) b+=`<div class="note err">Informe o faturamento de ${t.faltando.map(ymLabel).join(', ')} para calcular o trimestre.</div>`;
   }else b+='<div class="note info">Informe a competência para calcular o trimestre.</div>';
   $('boxTrim').innerHTML=b;
-  $('msgProv').innerHTML=`<div class="help" style="margin-top:8px">CRF (PIS 0,65% + COFINS 3% + CSLL 1%) e IRRF (1,5%) são os 6,15% retidos dos médicos LP — a clínica recolhe. A linha “INSS / outras” fica em zero por padrão (a planilha antiga provisionava INSS ali).</div>`;
+  $('msgProv').innerHTML=`<div class="help" style="margin-top:8px">CRF (PIS 0,65% + COFINS 3% + CSLL 1%) e IRRF (1,5%) são os 6,15% retidos dos médicos LP — a clínica recolhe. O INSS vem do campo “Valor do INSS” lá em cima (zero se não informado).</div>`;
 }
 function renderDist(){
   const D=R.dist;
@@ -642,6 +644,7 @@ dz.addEventListener('drop',e=>processarArquivos([...e.dataTransfer.files].filter
 
 $('inComp').addEventListener('change',e=>{st.competencia=e.target.value;persistDraft();renderAll();});
 $('inNF').addEventListener('change',e=>{st.valorNF=parseBR(e.target.value);persistDraft();renderAll();});
+$('inINSS').addEventListener('change',e=>{st.inss=parseBR(e.target.value);persistDraft();renderAll();});
 $('inSaldo').addEventListener('change',e=>{st.saldo=parseBR(e.target.value);persistDraft();renderAll();});
 
 document.addEventListener('change',e=>{
