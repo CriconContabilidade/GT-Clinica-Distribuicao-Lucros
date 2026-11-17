@@ -406,7 +406,7 @@ function calcular(st,cfg,hist){
   const fechaTri=[3,6,9,12].includes(mes);
   const tri={fecha:fechaTri,meses:[],receita:0,irrfRet:0,csllRet:0,irpjDev:0,csllDev:0,irpjPagar:0,csllPagar:0,total:0,faltando:[]};
   if(comp){
-    for(let k=-2;k<=0;k++){
+    for(let k=-((mes-1)%3);k<=0;k++){ // só os meses do trimestre-calendário em curso (jan-mar, abr-jun, jul-set, out-dez)
       const ym=ymAdd(comp,k);
       let nf=null,irrf=null,csll=null,orig='';
       if(k===0){nf=valorNF;irrf=st.demo&&st.demo.retencoes.irrf!=null?st.demo.retencoes.irrf:r2(valorNF*0.015);csll=st.demo&&st.demo.retencoes.csll!=null?st.demo.retencoes.csll:r2(valorNF*0.01);orig='mês atual';}
@@ -596,13 +596,13 @@ function renderProv(){
   const P=R.prov;
   $('tbProv').innerHTML=`<tr><th>Provisão</th><th class="n">Valor (R$)</th></tr>`+P.lin.map(l=>`<tr><td>${esc(l.nome)}${l.manual?' <span class="badge warn">manual</span>':''}</td><td class="n"><input class="cell" data-prov="${l.k}" value="${brl(l.valor)}"></td></tr>`).join('')+`<tr class="total"><td>TOTAL DE PROVISÕES</td><td class="n">${brl(P.total)}</td></tr>`;
   const t=P.tri;
-  let b=`<div class="help"><b>IRPJ/CSLL — trimestre ${t.meses.length?ymLabel(t.meses[0].ym)+' a '+ymLabel(t.meses[2].ym):''}</b></div>`;
+  let b=`<div class="help"><b>IRPJ/CSLL — trimestre ${t.meses.length?(t.meses.length>1?ymLabel(t.meses[0].ym)+' a ':'')+ymLabel(t.meses[t.meses.length-1].ym):''}</b></div>`;
   if(t.meses.length){
     b+=`<div class="table-wrap"><table class="t"><tr><th>Competência</th><th class="n">Valor NF</th><th class="n">IRRF retido</th><th class="n">CSLL retida</th></tr>`+
-      t.meses.map((m,i)=>`<tr><td>${ymLabel(m.ym)} <span class="badge info">${esc(m.orig||'faltando')}</span></td><td class="n">${i===2?brl(m.nf):`<input class="cell" data-hist="${m.ym}" value="${m.nf==null?'':brl(m.nf)}">`}</td><td class="n">${brl(m.irrf)}</td><td class="n">${brl(m.csll)}</td></tr>`).join('')+
+      t.meses.map((m,i)=>`<tr><td>${ymLabel(m.ym)} <span class="badge info">${esc(m.orig||'faltando')}</span></td><td class="n">${i===t.meses.length-1?brl(m.nf):`<input class="cell" data-hist="${m.ym}" value="${m.nf==null?'':brl(m.nf)}">`}</td><td class="n">${brl(m.irrf)}</td><td class="n">${brl(m.csll)}</td></tr>`).join('')+
       `<tr class="total"><td>Trimestre</td><td class="n">${brl(t.receita)}</td><td class="n">${brl(t.irrfRet)}</td><td class="n">${brl(t.csllRet)}</td></tr></table></div>`;
     b+=`<div class="help" style="margin-top:8px">IRPJ devido (${cfg.irpjBase}% × ${cfg.irpjMetodo==='legal'?'15% + adicional 10% s/ excedente de R$ 60 mil':cfg.irpjAliq+'%'}): <b>R$ ${brl(t.irpjDev)}</b> − IRRF retido = <b>R$ ${brl(t.irpjPagar)}</b><br>CSLL devida (${cfg.csllBase}% × ${cfg.csllAliq}%): <b>R$ ${brl(t.csllDev)}</b> − CSLL retida = <b>R$ ${brl(t.csllPagar)}</b></div>`;
-    if(!t.fecha) b+=`<div class="note info">A competência ${ymLabel(st.competencia)} não fecha trimestre — IRPJ/CSLL só são pagos no mês seguinte ao fim do trimestre (mar/jun/set/dez). Nada provisionado aqui.</div>`;
+    if(!t.fecha) b+=`<div class="note info">A competência ${ymLabel(st.competencia)} não fecha trimestre — o IRPJ/CSLL deste trimestre só é pago no mês seguinte ao seu fim (competências mar/jun/set/dez). Nada provisionado aqui.</div>`;
     if(t.faltando.length) b+=`<div class="note err">Informe o faturamento de ${t.faltando.map(ymLabel).join(', ')} para calcular o trimestre.</div>`;
   }else b+='<div class="note info">Informe a competência para calcular o trimestre.</div>';
   $('boxTrim').innerHTML=b;
