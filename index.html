@@ -690,26 +690,29 @@ function tabelaImagem(meds,comTotal){
     <div style="color:#65656B;margin-bottom:10px">Competência: ${esc(vars().periodo)}</div>
     <table style="border-collapse:collapse;width:100%"><tr style="background:#FAFAF8">${th.map((h,i)=>`<th style="padding:7px 10px;border-bottom:1.5px solid #A9A7A2;font-size:10.5px;text-transform:uppercase;color:#65656B;text-align:${i>1?'right':'left'}">${h}</th>`).join('')}</tr>${rows}${tot}</table></div>`;
 }
-async function copiarImagem(meds,comTotal,nomeArq){
+async function gerarPng(meds,comTotal){
   const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0';box.innerHTML=tabelaImagem(meds,comTotal);document.body.appendChild(box);
   try{
     if(document.fonts&&document.fonts.ready) await document.fonts.ready;
     const canvas=await html2canvas(box.firstElementChild,{scale:2,backgroundColor:'#ffffff'});
-    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
-    try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);return true;}
-    catch(e){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nomeArq+'.png';a.click();return false;}
+    return await new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error('falha ao gerar PNG')),'image/png'));
   }finally{box.remove();}
 }
-async function enviarWpp(meds,comTotal,comMsg,nomeArq){
+async function enviarWpp(meds,comTotal,comMsg){
   const fone=$('wppFone').value.replace(/\D/g,'');
   if(fone.length<12){$('wppStatus').innerHTML='<span style="color:var(--red)">Telefone inválido — use DDI+DDD+número.</span>';return;}
-  const w=window.open('about:blank','_blank'); // abre já no clique para o navegador não bloquear
-  $('wppStatus').textContent='Gerando imagem…';
-  let copiou=false;
-  try{copiou=await copiarImagem(meds,comTotal,nomeArq);}catch(e){console.error(e);$('wppStatus').innerHTML='<span style="color:var(--red)">Não foi possível gerar a imagem: '+esc(e.message)+'</span>';if(w)w.close();return;}
+  $('wppStatus').textContent='Copiando imagem…';
+  try{
+    // o write() é chamado já no clique (com a imagem ainda sendo gerada) para o navegador aceitar a cópia
+    await navigator.clipboard.write([new ClipboardItem({'image/png':gerarPng(meds,comTotal)})]);
+  }catch(e){
+    console.error(e);
+    $('wppStatus').innerHTML='<span style="color:var(--red)">Não foi possível copiar a imagem ('+esc(e.message||e.name)+'). Clique na página e tente de novo; o navegador precisa permitir a área de transferência.</span>';
+    return;
+  }
   const url='https://wa.me/'+fone+(comMsg?'?text='+encodeURIComponent(msgFinal()):'');
-  if(w)w.location.href=url;else window.location.href=url;
-  $('wppStatus').innerHTML=copiou?'<span style="color:var(--green-ink)">Imagem copiada — cole (Ctrl+V) na conversa do WhatsApp.</span>':'<span style="color:var(--amber)">O navegador não deixou copiar; a imagem foi baixada — anexe o arquivo na conversa.</span>';
+  const w=window.open(url,'_blank');
+  $('wppStatus').innerHTML='<span style="color:var(--green-ink)">Imagem copiada — cole (Ctrl+V) na conversa do WhatsApp.</span>'+(w?'':` <a href="${url}" target="_blank" rel="noopener">O navegador bloqueou a nova aba — clique aqui para abrir o WhatsApp.</a>`);
 }
 
 /* ---------- excel ---------- */
@@ -797,8 +800,8 @@ document.addEventListener('click',e=>{
 $('btSalvar').addEventListener('click',salvar);
 $('wppMsg').addEventListener('input',e=>lsSet('gtc_msg_v1',e.target.value));
 $('wppFone').addEventListener('change',e=>lsSet('gtc_fone_v1',e.target.value));
-$('btWppGeral').addEventListener('click',()=>enviarWpp(R.med,true,true,'relatorio-'+st.competencia));
-$('wppInd').addEventListener('click',e=>{const b=e.target.closest('[data-wpp]');if(!b)return;const m=R.med.find(x=>x.id===b.dataset.wpp);enviarWpp([m],false,false,'relatorio-'+m.id+'-'+st.competencia);});
+$('btWppGeral').addEventListener('click',()=>enviarWpp(R.med,true,true));
+$('wppInd').addEventListener('click',e=>{const b=e.target.closest('[data-wpp]');if(!b)return;const m=R.med.find(x=>x.id===b.dataset.wpp);enviarWpp([m],false,false);});
 $('btXlsx').addEventListener('click',exportXlsx);
 $('btPrint').addEventListener('click',()=>window.print());
 $('btLimpar').addEventListener('click',()=>{if(!confirm('Limpar a tela para um novo mês? (relatórios salvos são mantidos)'))return;st=novoEstado();persistDraft();renderAll();});
