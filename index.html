@@ -107,6 +107,7 @@ footer{margin-top:30px;font-size:11.5px;color:var(--ink-soft);text-align:center;
       <div class="field"><label>Competência (mês dos serviços)</label><input type="month" id="inComp"></div>
       <div class="field"><label>Valor para Nota Fiscal (R$)</label><input type="text" id="inNF" inputmode="decimal" placeholder="do demonstrativo"></div>
       <div class="field"><label>Saldo final do extrato (R$)</label><input type="text" id="inSaldo" inputmode="decimal" placeholder="lido do extrato"></div>
+      <div class="field"><label>Desconto (alimentação Unimed) — reduz base do ISS</label><input type="text" id="inDesc" inputmode="decimal" placeholder="lido do demonstrativo"></div>
       <div class="field"><label>Valor do INSS (R$)</label><input type="text" id="inINSS" inputmode="decimal" placeholder="ex.: 3.015,06"></div>
     </div>
     <div id="msgArquivos"></div>
@@ -377,7 +378,10 @@ function calcular(st,cfg,hist){
   /* provisões */
   const P=st.prov||{};
   const valorNF=st.valorNF||0;
-  const iss=r2(valorNF*cfg.issPct/100);
+  const descAuto=st.demo?r2(sum(st.demo.secoes.filter(x=>ehAlim(x)).map(x=>x.valor))):0;
+  const desconto=st.desconto!=null?st.desconto:descAuto;
+  const baseIss=r2(valorNF-desconto);
+  const iss=r2(baseIss*cfg.issPct/100);
   const crfIrrf=totMed.retencao;
   // trimestre (competência fecha trimestre → paga no mês seguinte)
   const comp=st.competencia||'';
@@ -408,7 +412,7 @@ function calcular(st,cfg,hist){
     tri.total=fechaTri?r2(tri.irpjPagar+tri.csllPagar):0;
   }
   const lin=[
-    {k:'iss',nome:`ISS ${cfg.issPct}% sobre a NF`,auto:iss},
+    {k:'iss',nome:`ISS ${cfg.issPct}% sobre R$ ${baseIss.toLocaleString('pt-BR',{minimumFractionDigits:2})} (NF − descontos)`,auto:iss},
     {k:'contab',nome:'Contabilidade (mensal)',auto:cfg.contabilidade},
     {k:'crfirrf',nome:'CRF e IRRF retidos dos médicos (LP)',auto:crfIrrf},
     {k:'irpjcsll',nome:'IRPJ e CSLL do trimestre',auto:tri.total},
@@ -441,7 +445,7 @@ function calcular(st,cfg,hist){
   const totLucros=r2(sum(socios.map(s=>s.lucro))), totSoc=r2(sum(socios.map(s=>s.total)));
   const sobra=r2(restante-X*iguais.length);
   const dist={saldo,disponivel,fixos,proLab,restante,opcoes,X,auto,socios,totLucros,totSoc,sobra,sobraComProv:r2(sobra+totProv)};
-  return {med,totMed,prov:{lin,total:totProv,iss,crfIrrf,tri,valorNF},dist};
+  return {med,totMed,prov:{lin,total:totProv,iss,crfIrrf,tri,valorNF,desconto,descAuto,baseIss},dist};
 }
 
 if(typeof module!=='undefined') module.exports={lerPdf,tipoPdf,parseRelatorio,parseDemonstrativo,parseExtrato,calcular,DEFAULT_CFG,SEED_HIST,parseBR,norm};
@@ -463,7 +467,7 @@ let cfg=Object.assign(JSON.parse(JSON.stringify(DEFAULT_CFG)),lsGet(LS.cfg,{}));
 cfg.socios.forEach(x=>{if(x.nome==='Cristiano'&&x.fixo===40378.98)x.fixo=40287.31;}); // valor antigo gravado no navegador
 let hist=Object.assign({},SEED_HIST,lsGet(LS.hist,{}));
 let saved=lsGet(LS.saved,{});
-const novoEstado=()=>({competencia:'',valorNF:null,saldo:null,inss:null,relatorios:[],demo:null,extrato:null,docs:{},prov:{},distX:null,arquivos:[]});
+const novoEstado=()=>({competencia:'',valorNF:null,saldo:null,inss:null,desconto:null,relatorios:[],demo:null,extrato:null,docs:{},prov:{},distX:null,arquivos:[]});
 let st=Object.assign(novoEstado(),lsGet(LS.draft,{}));
 const abertos=new Set();
 let R=null;
@@ -520,7 +524,7 @@ function renderArquivos(){
   $('fileList').innerHTML=st.arquivos.map(a=>`<div class="f"><span class="badge ${a.cls}">${esc(a.tipo)}</span><span class="nm">${esc(a.nome)}</span><span>${esc(a.info)}</span></div>`).join('');
   $('inComp').value=st.competencia||'';
   const setIfIdle=(id,v)=>{const el=$(id);if(document.activeElement!==el)el.value=v==null?'':brl(v);};
-  setIfIdle('inNF',st.valorNF);setIfIdle('inINSS',st.inss);setIfIdle('inSaldo',st.saldo);
+  setIfIdle('inNF',st.valorNF);setIfIdle('inINSS',st.inss);setIfIdle('inDesc',R.prov.desconto);setIfIdle('inSaldo',st.saldo);
   const avisos=[];
   const falt=cfg.doctors.filter(d=>d.fixo==null&&!st.relatorios.some(r=>r.docId===d.id));
   if(st.relatorios.length&&falt.length) avisos.push(`<div class="note warn">Sem relatório para: <b>${falt.map(d=>esc(d.nome)).join(', ')}</b>.</div>`);
@@ -662,6 +666,7 @@ dz.addEventListener('drop',e=>processarArquivos([...e.dataTransfer.files].filter
 
 $('inComp').addEventListener('change',e=>{st.competencia=e.target.value;persistDraft();renderAll();});
 $('inNF').addEventListener('change',e=>{st.valorNF=parseBR(e.target.value);persistDraft();renderAll();});
+$('inDesc').addEventListener('change',e=>{st.desconto=e.target.value.trim()===''?null:parseBR(e.target.value);persistDraft();renderAll();});
 $('inINSS').addEventListener('change',e=>{st.inss=parseBR(e.target.value);persistDraft();renderAll();});
 $('inSaldo').addEventListener('change',e=>{st.saldo=parseBR(e.target.value);persistDraft();renderAll();});
 
