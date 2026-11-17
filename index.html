@@ -747,17 +747,20 @@ async function enviarWpp(html,comMsg){
   const fone=$('wppFone').value.replace(/\D/g,'');
   if(fone.length<12){$('wppStatus').innerHTML='<span style="color:var(--red)">Telefone inválido — use DDI+DDD+número.</span>';return;}
   $('wppStatus').textContent='Copiando imagem…';
-  try{
-    // o write() é chamado já no clique (com a imagem ainda sendo gerada) para o navegador aceitar a cópia
-    await navigator.clipboard.write([new ClipboardItem({'image/png':gerarPng(html)})]);
-  }catch(e){
-    console.error(e);
-    $('wppStatus').innerHTML='<span style="color:var(--red)">Não foi possível copiar a imagem ('+esc(e.message||e.name)+'). Clique na página e tente de novo; o navegador precisa permitir a área de transferência.</span>';
-    return;
-  }
   const url='https://wa.me/'+fone+(comMsg?'?text='+encodeURIComponent(msgFinal()):'');
-  const w=window.open(url,'_blank');
-  $('wppStatus').innerHTML='<span style="color:var(--green-ink)">Imagem copiada — cole (Ctrl+V) na conversa do WhatsApp.</span>'+(w?'':` <a href="${url}" target="_blank" rel="noopener">O navegador bloqueou a nova aba — clique aqui para abrir o WhatsApp.</a>`);
+  const png=gerarPng(html);
+  let erro=null;
+  try{
+    if(!navigator.clipboard||!window.ClipboardItem) throw new Error('este navegador não permite copiar imagem');
+    // o write() é chamado já no clique (com a imagem ainda sendo gerada) para o navegador aceitar a cópia
+    await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);
+  }catch(e){console.error(e);erro=(e&&(e.message||e.name))||'erro desconhecido';}
+  const w=window.open(url,'_blank'); // abre o WhatsApp mesmo que a cópia falhe
+  const link=w?'':` <a href="${url}" target="_blank" rel="noopener">O navegador bloqueou a nova aba — clique aqui para abrir o WhatsApp.</a>`;
+  if(!erro){$('wppStatus').innerHTML='<span style="color:var(--green-ink)">Imagem copiada — cole (Ctrl+V) na conversa do WhatsApp.</span>'+link;return;}
+  let dl='';
+  try{const blob=await png;const href=URL.createObjectURL(blob);dl=` <a href="${href}" download="relatorio.png">Baixar a imagem</a> e anexe na conversa.`;}catch(e){}
+  $('wppStatus').innerHTML=`<span style="color:var(--red)">Não foi possível copiar a imagem (${esc(erro)}).</span>${dl}${link}`;
 }
 
 /* ---------- excel ---------- */
