@@ -160,6 +160,22 @@ footer{margin-top:30px;font-size:11.5px;color:var(--ink-soft);text-align:center;
     <div class="help" style="margin-top:8px">Os relatórios salvos ficam no armazenamento deste navegador/computador. Use o backup (.json) para guardar uma cópia no Drive ou levar para outro computador.</div>
   </div>
 
+  <!-- 6. WHATSAPP -->
+  <div class="card noprint" id="cardWpp">
+    <div class="section-title">6 · Enviar por WhatsApp</div>
+    <div class="help">Ao clicar, a imagem do relatório vai para a <b>área de transferência</b> e a conversa abre no WhatsApp — é só <b>colar (Ctrl+V)</b> a imagem antes de enviar. Disponível depois de salvar o relatório do mês.</div>
+    <div class="field-row">
+      <div class="field"><label>Telefone (com DDI)</label><input type="text" id="wppFone" value="+55 48 9155-1995"></div>
+    </div>
+    <div class="field"><label>Mensagem padrão (salva automaticamente para os próximos meses)</label>
+      <textarea id="wppMsg" rows="5" style="width:100%;padding:8px 10px;border:1.5px solid var(--rule-strong);border-radius:4px;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px"></textarea></div>
+    <div class="help" style="margin-top:6px">Variáveis: <code>{periodo}</code> = mês dos serviços (ex.: <span id="exPeriodo"></span>) · <code>{datas}</code> = período completo (ex.: <span id="exDatas"></span>)</div>
+    <div class="btn-row"><button class="btn" id="btWppGeral">Enviar relatório geral + mensagem</button></div>
+    <div class="help" style="margin:14px 0 4px"><b>Individual</b> — copia só a linha do profissional e abre a conversa, sem mensagem:</div>
+    <div class="btn-row" id="wppInd" style="margin-top:0"></div>
+    <div id="wppStatus" class="help" style="margin-top:10px"></div>
+  </div>
+
   <!-- PARÂMETROS -->
   <div class="card noprint">
     <div class="section-title">Parâmetros</div>
@@ -172,6 +188,7 @@ footer{margin-top:30px;font-size:11.5px;color:var(--ink-soft);text-align:center;
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- ============ NÚCLEO (sem DOM; testável em Node) ============ -->
 <script id="core">
@@ -520,7 +537,7 @@ function upsertArquivo(nome,tipo,info,cls){
 /* ---------- render ---------- */
 function renderAll(){
   R=calcular(st,cfg,hist);
-  renderArquivos();renderMedicos();renderProv();renderDist();renderSalvos();renderParams();
+  renderArquivos();renderMedicos();renderProv();renderDist();renderSalvos();renderParams();renderWpp();
 }
 function renderArquivos(){
   $('fileList').innerHTML=st.arquivos.map(a=>`<div class="f"><span class="badge ${a.cls}">${esc(a.tipo)}</span><span class="nm">${esc(a.nome)}</span><span>${esc(a.info)}</span><button class="link noprint" data-rmfile="${esc(a.nome)}" title="Remover este arquivo">✕ remover</button></div>`).join('')+(st.arquivos.length?'<div class="f noprint"><button class="link" id="btRmTodos">✕ remover todos os arquivos</button></div>':'');
@@ -643,6 +660,56 @@ function salvar(){
   renderAll();
 }
 
+/* ---------- whatsapp ---------- */
+const MSG_PADRAO='Dr. Giovanny, bom dia!\n\nSegue o relatório de pagamento dos médicos conveniados e a distribuição de lucros referentes a {periodo}.\n\nQualquer dúvida estou à disposição.';
+const pad2=n=>String(n).padStart(2,'0');
+function vars(){
+  if(!st.competencia) return {periodo:'[mês]',datas:'[período]'};
+  const [y,m]=st.competencia.split('-').map(Number);
+  return {periodo:ymLabel(st.competencia),datas:`01/${pad2(m)}/${y} a ${new Date(y,m,0).getDate()}/${pad2(m)}/${y}`};
+}
+const msgFinal=()=>{const v=vars();return $('wppMsg').value.replace(/\{periodo\}/g,v.periodo).replace(/\{datas\}/g,v.datas);};
+function renderWpp(){
+  const v=vars();$('exPeriodo').textContent=v.periodo;$('exDatas').textContent=v.datas;
+  if(!$('wppMsg').dataset.init){$('wppMsg').dataset.init=1;$('wppMsg').value=lsGet('gtc_msg_v1',MSG_PADRAO);$('wppFone').value=lsGet('gtc_fone_v1','+55 48 9155-1995');}
+  const ok=!!(st.competencia&&saved[st.competencia]);
+  $('btWppGeral').disabled=!ok;
+  $('wppInd').innerHTML=R.med.map(m=>`<button class="btn ghost small" data-wpp="${m.id}"${ok?'':' disabled'}>${esc(m.nome)}</button>`).join('');
+  if(!ok&&!$('wppStatus').textContent) $('wppStatus').textContent='Salve o relatório do mês (seção 5) para liberar o envio.';
+}
+function tabelaImagem(meds,comTotal){
+  const th=['Nome do profissional','Tributação','Notas fiscais (receita)','Alimentação','Comissão GT','Retenções','Valor a pagar'];
+  const c='padding:7px 10px;border-bottom:1px solid #D6D5D1;';
+  const rows=meds.map(m=>`<tr><td style="${c}font-weight:600">${esc(m.nome)}</td><td style="${c}">${m.trib}</td><td style="${c}text-align:right">${brl(m.receita)}</td><td style="${c}text-align:right">${brl(m.alimentacao)}</td><td style="${c}text-align:right">${brl(m.comissao)}</td><td style="${c}text-align:right">${brl(m.retencao)}</td><td style="${c}text-align:right;font-weight:700">${brl(m.pagar)}</td></tr>`).join('');
+  const t=R.totMed;
+  const tot=comTotal?`<tr style="background:#F4F3EF;font-weight:700"><td style="${c}">TOTAL</td><td style="${c}"></td><td style="${c}text-align:right">${brl(t.receita)}</td><td style="${c}text-align:right">${brl(t.alimentacao)}</td><td style="${c}text-align:right">${brl(t.comissao)}</td><td style="${c}text-align:right">${brl(t.retencao)}</td><td style="${c}text-align:right">${brl(t.pagar)}</td></tr>`:'';
+  return `<div style="font-family:'IBM Plex Sans',Arial,sans-serif;font-size:13px;color:#1A1A1A;background:#fff;padding:18px 20px;width:880px">
+    <div style="font-weight:700;font-size:15px;margin-bottom:2px">GT Clínica de Imagem — Serviços dos médicos conveniados</div>
+    <div style="color:#65656B;margin-bottom:10px">Competência: ${esc(vars().periodo)}</div>
+    <table style="border-collapse:collapse;width:100%"><tr style="background:#FAFAF8">${th.map((h,i)=>`<th style="padding:7px 10px;border-bottom:1.5px solid #A9A7A2;font-size:10.5px;text-transform:uppercase;color:#65656B;text-align:${i>1?'right':'left'}">${h}</th>`).join('')}</tr>${rows}${tot}</table></div>`;
+}
+async function copiarImagem(meds,comTotal,nomeArq){
+  const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0';box.innerHTML=tabelaImagem(meds,comTotal);document.body.appendChild(box);
+  try{
+    if(document.fonts&&document.fonts.ready) await document.fonts.ready;
+    const canvas=await html2canvas(box.firstElementChild,{scale:2,backgroundColor:'#ffffff'});
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);return true;}
+    catch(e){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nomeArq+'.png';a.click();return false;}
+  }finally{box.remove();}
+}
+async function enviarWpp(meds,comTotal,comMsg,nomeArq){
+  const fone=$('wppFone').value.replace(/\D/g,'');
+  if(fone.length<12){$('wppStatus').innerHTML='<span style="color:var(--red)">Telefone inválido — use DDI+DDD+número.</span>';return;}
+  const w=window.open('about:blank','_blank'); // abre já no clique para o navegador não bloquear
+  $('wppStatus').textContent='Gerando imagem…';
+  let copiou=false;
+  try{copiou=await copiarImagem(meds,comTotal,nomeArq);}catch(e){console.error(e);$('wppStatus').innerHTML='<span style="color:var(--red)">Não foi possível gerar a imagem: '+esc(e.message)+'</span>';if(w)w.close();return;}
+  const url='https://wa.me/'+fone+(comMsg?'?text='+encodeURIComponent(msgFinal()):'');
+  if(w)w.location.href=url;else window.location.href=url;
+  $('wppStatus').innerHTML=copiou?'<span style="color:var(--green-ink)">Imagem copiada — cole (Ctrl+V) na conversa do WhatsApp.</span>':'<span style="color:var(--amber)">O navegador não deixou copiar; a imagem foi baixada — anexe o arquivo na conversa.</span>';
+}
+
 /* ---------- excel ---------- */
 function exportXlsx(){
   const wb=XLSX.utils.book_new();
@@ -726,6 +793,10 @@ document.addEventListener('click',e=>{
   }
 });
 $('btSalvar').addEventListener('click',salvar);
+$('wppMsg').addEventListener('input',e=>lsSet('gtc_msg_v1',e.target.value));
+$('wppFone').addEventListener('change',e=>lsSet('gtc_fone_v1',e.target.value));
+$('btWppGeral').addEventListener('click',()=>enviarWpp(R.med,true,true,'relatorio-'+st.competencia));
+$('wppInd').addEventListener('click',e=>{const b=e.target.closest('[data-wpp]');if(!b)return;const m=R.med.find(x=>x.id===b.dataset.wpp);enviarWpp([m],false,false,'relatorio-'+m.id+'-'+st.competencia);});
 $('btXlsx').addEventListener('click',exportXlsx);
 $('btPrint').addEventListener('click',()=>window.print());
 $('btLimpar').addEventListener('click',()=>{if(!confirm('Limpar a tela para um novo mês? (relatórios salvos são mantidos)'))return;st=novoEstado();persistDraft();renderAll();});
