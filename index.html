@@ -183,15 +183,15 @@ footer{margin-top:30px;font-size:11.5px;color:var(--ink-soft);text-align:center;
   <!-- 6. WHATSAPP -->
   <div class="card noprint" id="cardWpp">
     <div class="section-title">6 · Enviar por WhatsApp</div>
-    <div class="help">Ao clicar, a imagem do relatório vai para a <b>área de transferência</b> e a conversa abre no WhatsApp — é só <b>colar (Ctrl+V)</b> a imagem antes de enviar. Os botões ficam ativos quando há arquivos do mês carregados.</div>
+    <div class="help">O botão da distribuição copia a imagem para a <b>área de transferência</b> e abre a conversa no WhatsApp com a mensagem — é só <b>colar (Ctrl+V)</b> a imagem antes de enviar. Os botões ficam ativos quando há arquivos do mês carregados.</div>
     <div class="field-row">
       <div class="field"><label>Telefone (com DDI)</label><input type="text" id="wppFone" value="+55 48 9155-1995"></div>
     </div>
     <div class="field"><label>Mensagem padrão (salva automaticamente para os próximos meses)</label>
       <textarea id="wppMsg" rows="5" style="width:100%;padding:8px 10px;border:1.5px solid var(--rule-strong);border-radius:4px;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px"></textarea></div>
     <div class="help" style="margin-top:6px">Variáveis: <code>{periodo}</code> = mês dos serviços (ex.: <span id="exPeriodo"></span>) · <code>{datas}</code> = período completo (ex.: <span id="exDatas"></span>)</div>
-    <div class="btn-row"><button class="btn" id="btWppGeral">Enviar relatório geral + mensagem</button> <button class="btn ghost" id="btWppSocios">Enviar distribuição de lucros (sócios)</button></div>
-    <div class="help" style="margin:14px 0 4px"><b>Individual</b> — copia só a linha do profissional e abre a conversa, sem mensagem:</div>
+    <div class="btn-row"><button class="btn" id="btWppSocios">Enviar distribuição de lucros (sócios) + mensagem</button></div>
+    <div class="help" style="margin:14px 0 4px"><b>Individual</b> — só copia a imagem da linha do profissional (não abre o WhatsApp); cole onde precisar:</div>
     <div class="btn-row" id="wppInd" style="margin-top:0"></div>
     <div id="wppStatus" class="help" style="margin-top:10px"></div>
   </div>
@@ -711,7 +711,7 @@ function renderWpp(){
   const v=vars();$('exPeriodo').textContent=v.periodo;$('exDatas').textContent=v.datas;
   if(!$('wppMsg').dataset.init){$('wppMsg').dataset.init=1;$('wppMsg').value=lsGet('gtc_msg_v1',MSG_PADRAO);$('wppFone').value=lsGet('gtc_fone_v1','+55 48 9155-1995');}
   const ok=!!st.competencia; // libera assim que há competência (o salvamento fica só neste navegador, então não pode ser exigido)
-  $('btWppGeral').disabled=!ok;$('btWppSocios').disabled=!ok;
+  $('btWppSocios').disabled=!ok;
   $('wppInd').innerHTML=R.med.map(m=>`<button class="btn ghost small" data-wpp="${m.id}"${ok?'':' disabled'}>${esc(m.nome)}</button>`).join('');
   if(!ok&&!$('wppStatus').textContent) $('wppStatus').textContent='Carregue os arquivos do mês (seção 1) para liberar o envio.';
 }
@@ -743,6 +743,19 @@ async function gerarPng(html){
     const canvas=await html2canvas(box.firstElementChild,{scale:2,backgroundColor:'#ffffff'});
     return await new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error('falha ao gerar PNG')),'image/png'));
   }finally{box.remove();}
+}
+async function copiarSo(html,nome){
+  $('wppStatus').textContent='Copiando imagem…';
+  const png=gerarPng(html);
+  try{
+    if(!navigator.clipboard||!window.ClipboardItem) throw new Error('este navegador não permite copiar imagem');
+    await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);
+    $('wppStatus').innerHTML=`<span style="color:var(--green-ink)">Imagem de ${esc(nome)} copiada — cole (Ctrl+V) onde precisar.</span>`;
+  }catch(e){
+    console.error(e);
+    let dl='';try{const href=URL.createObjectURL(await png);dl=` <a href="${href}" download="${esc(nome)}.png">Baixar a imagem</a>.`;}catch(_){}
+    $('wppStatus').innerHTML=`<span style="color:var(--red)">Não foi possível copiar a imagem (${esc((e&&(e.message||e.name))||'erro')}).</span>${dl}`;
+  }
 }
 async function enviarWpp(html,comMsg){
   const fone=$('wppFone').value.replace(/\D/g,'');
@@ -849,9 +862,8 @@ document.addEventListener('click',e=>{
 $('btSalvar').addEventListener('click',salvar);
 $('wppMsg').addEventListener('input',e=>lsSet('gtc_msg_v1',e.target.value));
 $('wppFone').addEventListener('change',e=>lsSet('gtc_fone_v1',e.target.value));
-$('btWppGeral').addEventListener('click',()=>enviarWpp(tabelaImagem(R.med,true),true));
-$('btWppSocios').addEventListener('click',()=>enviarWpp(tabelaSociosImagem(),false));
-$('wppInd').addEventListener('click',e=>{const b=e.target.closest('[data-wpp]');if(!b)return;const m=R.med.find(x=>x.id===b.dataset.wpp);enviarWpp(tabelaImagem([m],false),false);});
+$('btWppSocios').addEventListener('click',()=>enviarWpp(tabelaSociosImagem(),true));
+$('wppInd').addEventListener('click',e=>{const b=e.target.closest('[data-wpp]');if(!b)return;const m=R.med.find(x=>x.id===b.dataset.wpp);copiarSo(tabelaImagem([m],false),m.nome);});
 $('btXlsx').addEventListener('click',exportXlsx);
 $('btPrint').addEventListener('click',()=>window.print());
 $('btLimpar').addEventListener('click',()=>{if(!confirm('Limpar a tela para um novo mês? (relatórios salvos são mantidos)'))return;st=novoEstado();persistDraft();renderAll();});
