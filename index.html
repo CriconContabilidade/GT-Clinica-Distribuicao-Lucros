@@ -170,7 +170,7 @@ footer{margin-top:30px;font-size:11.5px;color:var(--ink-soft);text-align:center;
     <div class="field"><label>Mensagem padrão (salva automaticamente para os próximos meses)</label>
       <textarea id="wppMsg" rows="5" style="width:100%;padding:8px 10px;border:1.5px solid var(--rule-strong);border-radius:4px;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px"></textarea></div>
     <div class="help" style="margin-top:6px">Variáveis: <code>{periodo}</code> = mês dos serviços (ex.: <span id="exPeriodo"></span>) · <code>{datas}</code> = período completo (ex.: <span id="exDatas"></span>)</div>
-    <div class="btn-row"><button class="btn" id="btWppGeral">Enviar relatório geral + mensagem</button></div>
+    <div class="btn-row"><button class="btn" id="btWppGeral">Enviar relatório geral + mensagem</button> <button class="btn ghost" id="btWppSocios">Enviar distribuição de lucros (sócios)</button></div>
     <div class="help" style="margin:14px 0 4px"><b>Individual</b> — copia só a linha do profissional e abre a conversa, sem mensagem:</div>
     <div class="btn-row" id="wppInd" style="margin-top:0"></div>
     <div id="wppStatus" class="help" style="margin-top:10px"></div>
@@ -690,7 +690,7 @@ function renderWpp(){
   const v=vars();$('exPeriodo').textContent=v.periodo;$('exDatas').textContent=v.datas;
   if(!$('wppMsg').dataset.init){$('wppMsg').dataset.init=1;$('wppMsg').value=lsGet('gtc_msg_v1',MSG_PADRAO);$('wppFone').value=lsGet('gtc_fone_v1','+55 48 9155-1995');}
   const ok=!!(st.competencia&&saved[st.competencia]);
-  $('btWppGeral').disabled=!ok;
+  $('btWppGeral').disabled=!ok;$('btWppSocios').disabled=!ok;
   $('wppInd').innerHTML=R.med.map(m=>`<button class="btn ghost small" data-wpp="${m.id}"${ok?'':' disabled'}>${esc(m.nome)}</button>`).join('');
   if(!ok&&!$('wppStatus').textContent) $('wppStatus').textContent='Salve o relatório do mês (seção 5) para liberar o envio.';
 }
@@ -705,21 +705,31 @@ function tabelaImagem(meds,comTotal){
     <div style="color:#65656B;margin-bottom:10px">Competência: ${esc(vars().periodo)}</div>
     <table style="border-collapse:collapse;width:100%"><tr style="background:#FAFAF8">${th.map((h,i)=>`<th style="padding:7px 10px;border-bottom:1.5px solid #A9A7A2;font-size:10.5px;text-transform:uppercase;color:#65656B;text-align:${i>1?'right':'left'}">${h}</th>`).join('')}</tr>${rows}${tot}</table></div>`;
 }
-async function gerarPng(meds,comTotal){
-  const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0';box.innerHTML=tabelaImagem(meds,comTotal);document.body.appendChild(box);
+function tabelaSociosImagem(){
+  const c='padding:7px 10px;border-bottom:1px solid #D6D5D1;',D=R.dist;
+  const rows=D.socios.map(x=>`<tr><td style="${c}">${esc(x.nome)}${x.fixo?' <span style="font-size:10px;background:#DDE6F2;color:#2B4C7E;border-radius:9px;padding:1px 7px">fixo</span>':''}</td><td style="${c}text-align:right">${brl(x.lucro)}</td><td style="${c}text-align:right">${brl(x.proLabore)}</td><td style="${c}text-align:right;font-weight:600">${brl(x.total)}</td></tr>`).join('');
+  const th=(h,i)=>`<th style="padding:7px 10px;border-bottom:1.5px solid #A9A7A2;font-size:10.5px;text-transform:uppercase;color:#65656B;text-align:${i?'right':'left'}">${h}</th>`;
+  return `<div style="font-family:'IBM Plex Sans',Arial,sans-serif;font-size:13px;color:#1A1A1A;background:#fff;padding:18px 20px;width:560px">
+    <div style="font-weight:700;font-size:15px;margin-bottom:2px">GT Clínica de Imagem — Distribuição de lucros</div>
+    <div style="color:#65656B;margin-bottom:10px">Competência: ${esc(vars().periodo)}</div>
+    <table style="border-collapse:collapse;width:100%"><tr style="background:#FAFAF8">${['Sócio','Lucros','Pró-labore','Total'].map(th).join('')}</tr>${rows}
+    <tr style="background:#F4F3EF;font-weight:700"><td style="${c}">TOTAL</td><td style="${c}text-align:right">${brl(D.totLucros)}</td><td style="${c}text-align:right">${brl(D.proLab)}</td><td style="${c}text-align:right">${brl(D.totSoc)}</td></tr></table></div>`;
+}
+async function gerarPng(html){
+  const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0';box.innerHTML=html;document.body.appendChild(box);
   try{
     if(document.fonts&&document.fonts.ready) await document.fonts.ready;
     const canvas=await html2canvas(box.firstElementChild,{scale:2,backgroundColor:'#ffffff'});
     return await new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error('falha ao gerar PNG')),'image/png'));
   }finally{box.remove();}
 }
-async function enviarWpp(meds,comTotal,comMsg){
+async function enviarWpp(html,comMsg){
   const fone=$('wppFone').value.replace(/\D/g,'');
   if(fone.length<12){$('wppStatus').innerHTML='<span style="color:var(--red)">Telefone inválido — use DDI+DDD+número.</span>';return;}
   $('wppStatus').textContent='Copiando imagem…';
   try{
     // o write() é chamado já no clique (com a imagem ainda sendo gerada) para o navegador aceitar a cópia
-    await navigator.clipboard.write([new ClipboardItem({'image/png':gerarPng(meds,comTotal)})]);
+    await navigator.clipboard.write([new ClipboardItem({'image/png':gerarPng(html)})]);
   }catch(e){
     console.error(e);
     $('wppStatus').innerHTML='<span style="color:var(--red)">Não foi possível copiar a imagem ('+esc(e.message||e.name)+'). Clique na página e tente de novo; o navegador precisa permitir a área de transferência.</span>';
@@ -815,8 +825,9 @@ document.addEventListener('click',e=>{
 $('btSalvar').addEventListener('click',salvar);
 $('wppMsg').addEventListener('input',e=>lsSet('gtc_msg_v1',e.target.value));
 $('wppFone').addEventListener('change',e=>lsSet('gtc_fone_v1',e.target.value));
-$('btWppGeral').addEventListener('click',()=>enviarWpp(R.med,true,true));
-$('wppInd').addEventListener('click',e=>{const b=e.target.closest('[data-wpp]');if(!b)return;const m=R.med.find(x=>x.id===b.dataset.wpp);enviarWpp([m],false,false);});
+$('btWppGeral').addEventListener('click',()=>enviarWpp(tabelaImagem(R.med,true),true));
+$('btWppSocios').addEventListener('click',()=>enviarWpp(tabelaSociosImagem(),false));
+$('wppInd').addEventListener('click',e=>{const b=e.target.closest('[data-wpp]');if(!b)return;const m=R.med.find(x=>x.id===b.dataset.wpp);enviarWpp(tabelaImagem([m],false),false);});
 $('btXlsx').addEventListener('click',exportXlsx);
 $('btPrint').addEventListener('click',()=>window.print());
 $('btLimpar').addEventListener('click',()=>{if(!confirm('Limpar a tela para um novo mês? (relatórios salvos são mantidos)'))return;st=novoEstado();persistDraft();renderAll();});
