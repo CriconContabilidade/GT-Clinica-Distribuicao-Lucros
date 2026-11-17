@@ -399,13 +399,13 @@ function calcular(st,cfg,hist){
     const off=o.extraOff||{};
     const extrasOn=extras.filter(e=>!off[e.key]);
     const totExtras=r2(sum(extrasOn.map(e=>e.valor)));
-    const alimAuto=d.semAlim?0:r2(sum(alim.map(a=>a.valor))); // Luigi e Leonardo Ghizi não têm a alimentação descontada
+    const alimAuto=0; // cliente: nenhum conveniado tem alimentação descontada
     const receita=d.fixo!=null?o2(o.fixo,d.fixo):r2(totRel+totExtras);
     const pctCom=o2(o.comissao,d.comissao), pctRet=o2(o.ret,d.ret);
     const comissao=r2(receita*pctCom/100);
     const base=r2(receita-comissao);
     const retencao=r2(base*pctRet/100);
-    const alimentacao=o2(o.alimentacao,alimAuto);
+    const alimentacao=0;
     return {id:d.id,nome:d.nome,trib:o2(o.trib,d.trib),fixo:d.fixo!=null,rels,totRel,extras,totExtras,alim,alimAuto,
       receita,pctCom,comissao,base,pctRet,retencao,alimentacao,pagar:r2(base-retencao-alimentacao),off};
   });
@@ -585,14 +585,13 @@ function renderArquivos(){
   $('msgArquivos').innerHTML=avisos.join('');
 }
 function renderMedicos(){
-  const head=`<tr><th>Nome do profissional</th><th>Tributação</th><th class="n">Notas fiscais (receita)</th><th class="n">Alimentação</th><th class="n">Comissão GT</th><th class="n">Retenções</th><th class="n">Valor a pagar</th></tr>`;
+  const head=`<tr><th>Nome do profissional</th><th>Tributação</th><th class="n">Notas fiscais (receita)</th><th class="n">Comissão GT</th><th class="n">Retenções</th><th class="n">Valor a pagar</th></tr>`;
   const rows=R.med.map(m=>{
     const aberto=abertos.has(m.id);
     const recCell=m.fixo?`<input class="cell" data-doc="${m.id}" data-f="fixo" value="${brl(m.receita)}">`:brl(m.receita);
     let r=`<tr><td><button class="link" data-toggle="${m.id}">${aberto?'▾':'▸'}</button> <b>${esc(m.nome)}</b></td>
       <td><select class="cell" data-doc="${m.id}" data-f="trib"><option${m.trib==='LP'?' selected':''}>LP</option><option${m.trib==='SN'?' selected':''}>SN</option></select></td>
       <td class="n">${recCell}</td>
-      <td class="n"><input class="cell" data-doc="${m.id}" data-f="alimentacao" value="${brl(m.alimentacao)}"></td>
       <td class="n">${brl(m.comissao)}<br><span style="font-size:11px;color:var(--ink-soft)"><input class="cell pct" data-doc="${m.id}" data-f="comissao" value="${String(m.pctCom).replace('.',',')}">%</span></td>
       <td class="n">${brl(m.retencao)}<br><span style="font-size:11px;color:var(--ink-soft)"><input class="cell pct" data-doc="${m.id}" data-f="ret" value="${String(m.pctRet).replace('.',',')}">%</span></td>
       <td class="n"><b>${brl(m.pagar)}</b></td></tr>`;
@@ -605,13 +604,13 @@ function renderMedicos(){
           d+='<b>Demais lançamentos do demonstrativo Unimed</b> (marque para somar):<br>'+m.extras.map(e=>`<label><input type="checkbox" data-extra="${m.id}" data-key="${e.key}"${m.off[e.key]?'':' checked'}> ${esc(e.secao)} — ${esc(e.texto)}: R$ ${brl(e.valor)}${e.inferido?' <span class="badge warn">valor cortado no PDF — diferença do total da seção</span>':''}</label>`).join('<br>');
         }
       }
-      if(m.alim.length) d+='<br><b>Alimentação (demonstrativo)</b>: '+m.alim.map(a=>`${esc(a.secao.replace(/DÉBITO CONSUMO /i,''))} R$ ${brl(a.valor)}`).join(' · ');
-      r+=`<tr class="det"><td colspan="7">${d}</td></tr>`;
+      
+      r+=`<tr class="det"><td colspan="6">${d}</td></tr>`;
     }
     return r;
   }).join('');
   const t=R.totMed;
-  $('tbMedicos').innerHTML=head+rows+`<tr class="total"><td>TOTAL</td><td></td><td class="n">${brl(t.receita)}</td><td class="n">${brl(t.alimentacao)}</td><td class="n">${brl(t.comissao)}</td><td class="n">${brl(t.retencao)}</td><td class="n">${brl(t.pagar)}</td></tr>`;
+  $('tbMedicos').innerHTML=head+rows+`<tr class="total"><td>TOTAL</td><td></td><td class="n">${brl(t.receita)}</td><td class="n">${brl(t.comissao)}</td><td class="n">${brl(t.retencao)}</td><td class="n">${brl(t.pagar)}</td></tr>`;
   const notes=[];
   if(st.demo){
     st.demo.secoes.forEach(s=>{
@@ -621,7 +620,7 @@ function renderMedicos(){
       }
     });
   }
-  $('msgMedicos').innerHTML=notes.join('')+`<div class="help" style="margin-top:8px">Receita = total de cada relatório de exames (todos os convênios) + lançamentos do demonstrativo Unimed. Retenção incide sobre a NF já líquida da comissão; alimentação é descontada do valor a pagar. Clique em ▸ para ver/ajustar a composição.</div>`;
+  $('msgMedicos').innerHTML=notes.join('')+`<div class="help" style="margin-top:8px">Receita = total de cada relatório de exames (todos os convênios) + lançamentos do demonstrativo Unimed. Retenção incide sobre a NF já líquida da comissão. Clique em ▸ para ver/ajustar a composição.</div>`;
 }
 function renderProv(){
   const P=R.prov;
@@ -716,11 +715,11 @@ function renderWpp(){
   if(!ok&&!$('wppStatus').textContent) $('wppStatus').textContent='Carregue os arquivos do mês (seção 1) para liberar o envio.';
 }
 function tabelaImagem(meds,comTotal){
-  const th=['Nome do profissional','Tributação','Notas fiscais (receita)','Alimentação','Comissão GT','Retenções','Valor a pagar'];
+  const th=['Nome do profissional','Tributação','Notas fiscais (receita)','Comissão GT','Retenções','Valor a pagar'];
   const c='padding:7px 10px;border-bottom:1px solid #D6D5D1;';
-  const rows=meds.map(m=>`<tr><td style="${c}font-weight:600">${esc(m.nome)}</td><td style="${c}">${m.trib}</td><td style="${c}text-align:right">${brl(m.receita)}</td><td style="${c}text-align:right">${brl(m.alimentacao)}</td><td style="${c}text-align:right">${brl(m.comissao)}</td><td style="${c}text-align:right">${brl(m.retencao)}</td><td style="${c}text-align:right;font-weight:700">${brl(m.pagar)}</td></tr>`).join('');
+  const rows=meds.map(m=>`<tr><td style="${c}font-weight:600">${esc(m.nome)}</td><td style="${c}">${m.trib}</td><td style="${c}text-align:right">${brl(m.receita)}</td><td style="${c}text-align:right">${brl(m.comissao)}</td><td style="${c}text-align:right">${brl(m.retencao)}</td><td style="${c}text-align:right;font-weight:700">${brl(m.pagar)}</td></tr>`).join('');
   const t=R.totMed;
-  const tot=comTotal?`<tr style="background:#F4F3EF;font-weight:700"><td style="${c}">TOTAL</td><td style="${c}"></td><td style="${c}text-align:right">${brl(t.receita)}</td><td style="${c}text-align:right">${brl(t.alimentacao)}</td><td style="${c}text-align:right">${brl(t.comissao)}</td><td style="${c}text-align:right">${brl(t.retencao)}</td><td style="${c}text-align:right">${brl(t.pagar)}</td></tr>`:'';
+  const tot=comTotal?`<tr style="background:#F4F3EF;font-weight:700"><td style="${c}">TOTAL</td><td style="${c}"></td><td style="${c}text-align:right">${brl(t.receita)}</td><td style="${c}text-align:right">${brl(t.comissao)}</td><td style="${c}text-align:right">${brl(t.retencao)}</td><td style="${c}text-align:right">${brl(t.pagar)}</td></tr>`:'';
   return `<div style="font-family:'IBM Plex Sans',Arial,sans-serif;font-size:13px;color:#1A1A1A;background:#fff;padding:18px 20px;width:880px">
     <div style="font-weight:700;font-size:15px;margin-bottom:2px">GT Clínica de Imagem — Serviços dos médicos conveniados</div>
     <div style="color:#65656B;margin-bottom:10px">Competência: ${esc(vars().periodo)}</div>
@@ -780,9 +779,9 @@ async function enviarWpp(html,comMsg){
 /* ---------- excel ---------- */
 function exportXlsx(){
   const wb=XLSX.utils.book_new();
-  const a=[['NOME DO PROFISSIONAL','TRIBUTAÇÃO','NOTAS FISCAIS (RECEITA)','ALIMENTAÇÃO','COMISSÃO GT','RETENÇÕES','VALOR A PAGAR']];
-  R.med.forEach(m=>a.push([m.nome,m.trib,m.receita,m.alimentacao,m.comissao,m.retencao,m.pagar]));
-  a.push(['TOTAL','',R.totMed.receita,R.totMed.alimentacao,R.totMed.comissao,R.totMed.retencao,R.totMed.pagar]);
+  const a=[['NOME DO PROFISSIONAL','TRIBUTAÇÃO','NOTAS FISCAIS (RECEITA)','COMISSÃO GT','RETENÇÕES','VALOR A PAGAR']];
+  R.med.forEach(m=>a.push([m.nome,m.trib,m.receita,m.comissao,m.retencao,m.pagar]));
+  a.push(['TOTAL','',R.totMed.receita,R.totMed.comissao,R.totMed.retencao,R.totMed.pagar]);
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a),'Médicos');
   const p=[['PROVISÃO','VALOR']];R.prov.lin.forEach(l=>p.push([l.nome,l.valor]));p.push(['TOTAL',R.prov.total]);
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(p),'Provisões');
