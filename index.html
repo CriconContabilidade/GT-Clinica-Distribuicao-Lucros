@@ -193,7 +193,7 @@ const DEFAULT_CFG={
     {id:'lays', nome:'Lays', re:'\\blays\\b', trib:'LP', comissao:0, ret:6.15},
     {id:'marilia', nome:'Marilia', re:'\\bmarilia\\b', trib:'SN', comissao:0, ret:0},
     {id:'luigi', nome:'Luigi', re:'\\bluigi\\b', trib:'LP', comissao:0, ret:6.15, fixo:45000},
-    {id:'leonardo', nome:'Leonardo Ghizi', re:'leonardo\\s+g|ghizi|ghizzi', trib:'SN', comissao:0, ret:0, fixo:35000},
+    {id:'leonardo', nome:'Leonardo Ghizi', re:'leonardo\\s+g|ghizi|ghizzi|ghisi', trib:'SN', comissao:0, ret:0, fixo:35000},
     {id:'eduardo', nome:'Eduardo', re:'\\beduardo\\b', trib:'SN', comissao:7.93, ret:0},
     {id:'danyella', nome:'Danyella', re:'\\bdanyella\\b', trib:'LP', comissao:0, ret:6.15}
   ],
@@ -249,6 +249,8 @@ function parseRelatorio(pages,arquivo){
     const cand=p1.filter(i=>Math.abs(i.x-lab.x)<4&&i.y>lab.y+2&&!/^(Nº|Acomoda)/.test(i.s)).sort((a,b)=>a.y-b.y)[0];
     if(cand) medico=cand.s;
   }
+  const pm=p1.map(i=>i.s).join(' ').match(/Per[ií]odo de:?\s*(\d{2})\/(\d{2})\/(\d{2,4})/);
+  const ym=pm?(pm[3].length===2?'20'+pm[3]:pm[3])+'-'+pm[2]:null;
   const hv=p1.find(i=>i.s==='Vl Médico'),hc=p1.find(i=>i.s==='Convênio');
   if(!hv||!hc) throw new Error('Cabeçalho “Vl Médico/Convênio” não encontrado');
   const linhasOk=[],totais=[];
@@ -263,7 +265,7 @@ function parseRelatorio(pages,arquivo){
   const soma=r2(sum(linhasOk.map(r=>r.v)));
   const impresso=totais.length?totais[totais.length-1]:null;
   const total=impresso!=null?impresso:soma;
-  return {arquivo,medico:medico||arquivo,hospital:hosp?hosp.s:'?',total,soma,impresso,porConvenio,n:linhasOk.length,
+  return {arquivo,medico:medico||arquivo,hospital:hosp?hosp.s:'?',ym,total,soma,impresso,porConvenio,n:linhasOk.length,
     aviso:(impresso!=null&&Math.abs(impresso-soma)>0.01)?`soma das linhas (${soma}) difere do total impresso (${impresso})`:''};
 }
 
@@ -292,19 +294,25 @@ function parseDemonstrativo(pages){
         continue;
       }
       if(!sec) continue;
-      if(sec.sinal==='+'&&/^[A-Za-zÀ-ÿ.]+(?: [A-Za-zÀ-ÿ.]+){0,2}$/.test(l.text)&&l.text.length<=25&&!/^(Valor|Documento|Total|Benefici|Motivo)/i.test(l.text)){(sec.orfas=sec.orfas||[]).push(l.text);continue;}
-      const mv=l.items.filter(i=>MONEY.test(i.s));
-      const texto=l.text;
-      const m=texto.match(/^(.*?)(?:R\$)?\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})$/);
-      const nValores=(texto.match(/\d{1,3}(?:\.\d{3})*,\d{2}/g)||[]).length;
-      if(m&&nValores===1&&m[1].trim()&&!/^(Valor|Documento|Total|Importante|Benefici)/i.test(texto)){
-        let v=parseBR(m[2]);
-        if(v<0&&/[A-Za-zÀ-ÿ.]$/.test(m[1])) v=-v; // "Giovanny B G-22.158,79": o hífen é separador, não sinal
-        sec.linhas.push({texto:m[1].replace(/[-:\s]+$/,'').trim(),valor:v});
-      }
+      (sec.textos=sec.textos||[]).push(l.text);
     }
   }
   out.secoes.forEach(s=>{
+    // os nomes/valores vêm ora um por linha, ora vários na mesma linha, ora quebrados entre linhas:
+    // junta o texto da seção e separa por valor monetário (1.234,56 ou 1234,56)
+    s.linhas=[];
+    if(s.sinal==='+'||/aliment/.test(norm(s.nome))){
+      const txt=(s.textos||[]).join(' ').replace(/\s+/g,' ');
+      const re=/(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2})/g;
+      let last=0,m;
+      while((m=re.exec(txt))){
+        const nome=txt.slice(last,m.index).replace(/^[\s,;:\-]+/,'').replace(/(R\$)?[\s\-:]*$/,'').trim();
+        last=m.index+m[0].length;
+        if(/[A-Za-zÀ-ÿ]/.test(nome)) s.linhas.push({texto:nome,valor:parseBR(m[0])});
+      }
+      const resto=txt.slice(last).replace(/^[\s,;:\-]+/,'').trim();
+      if(s.sinal==='+'&&/^[A-Za-zÀ-ÿ.]+(?: [A-Za-zÀ-ÿ.]+){0,2}$/.test(resto)&&resto.length<=25) s.orfas=[resto];
+    }
     s.somaLinhas=r2(sum(s.linhas.map(x=>x.valor)));
     // linha cortada no PDF (nome sem valor): a diferença p/ o total da seção é dela
     const dif=r2(s.valor-s.somaLinhas);
@@ -347,7 +355,7 @@ function calcular(st,cfg,hist){
   const o2=(x,d)=>x==null||x===''?d:x;
   const med=cfg.doctors.map(d=>{
     const o=(st.docs||{})[d.id]||{};
-    const rels=(st.relatorios||[]).filter(r=>r.docId===d.id);
+    const rels=(st.relatorios||[]).filter(r=>r.docId===d.id&&(!r.ym||!st.competencia||r.ym===st.competencia));
     const totRel=r2(sum(rels.map(r=>r.total)));
     const {extras,alim}=d.fixo!=null?{extras:[],alim:linhasDoMedico(st.demo,d).alim}:linhasDoMedico(st.demo,d);
     const off=o.extraOff||{};
@@ -517,6 +525,7 @@ function renderArquivos(){
   const falt=cfg.doctors.filter(d=>d.fixo==null&&!st.relatorios.some(r=>r.docId===d.id));
   if(st.relatorios.length&&falt.length) avisos.push(`<div class="note warn">Sem relatório para: <b>${falt.map(d=>esc(d.nome)).join(', ')}</b>.</div>`);
   st.relatorios.filter(r=>!r.docId).forEach(r=>avisos.push(`<div class="note err">Médico “${esc(r.medico)}” (${esc(r.arquivo)}) não corresponde a ninguém da tabela — não entrou na soma.</div>`));
+  st.relatorios.filter(r=>r.ym&&st.competencia&&r.ym!==st.competencia).forEach(r=>avisos.push(`<div class="note err"><b>${esc(r.arquivo)}</b> é do período ${ymLabel(r.ym)}, mas a competência é ${ymLabel(st.competencia)} — <b>não entrou na soma</b>. Carregue o relatório do mês correto.</div>`));
   st.relatorios.filter(r=>r.aviso).forEach(r=>avisos.push(`<div class="note warn">${esc(r.arquivo)}: ${esc(r.aviso)}.</div>`));
   if(!st.extrato) avisos.push('<div class="note warn">Extrato bancário ainda não carregado — o saldo vem dele (o campo só deve ser preenchido à mão se o PDF não puder ser lido).</div>');
   $('msgArquivos').innerHTML=avisos.join('');
