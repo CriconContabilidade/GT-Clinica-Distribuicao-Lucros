@@ -490,7 +490,8 @@ async function processarArquivos(files){
       const tipo=tipoPdf(pages);
       if(tipo==='demonstrativo'){
         const d=parseDemonstrativo(pages);
-        st.demo=d;
+        st.arquivos=st.arquivos.filter(a=>a.tipo!=='demonstrativo');
+        d.arquivo=f.name;st.demo=d;
         if(d.valorNF!=null) st.valorNF=d.valorNF;
         if(d.competencia) st.competencia=d.competencia.slice(0,4)+'-'+d.competencia.slice(4);
         upsertArquivo(f.name,'demonstrativo',`competência ${d.competencia||'?'} · NF ${brl(d.valorNF)}`,'ok');
@@ -502,7 +503,8 @@ async function processarArquivos(files){
         upsertArquivo(f.name,'relatório',`${r.medico} · ${r.hospital} · ${brl(r.total)}`+(r.docId?'':' · médico não reconhecido'),r.docId&&!r.aviso?'ok':'warn');
       }else if(tipo==='extrato'){
         const e=parseExtrato(pages);
-        st.extrato=e;
+        st.arquivos=st.arquivos.filter(a=>a.tipo!=='extrato');
+        e.arquivo=f.name;st.extrato=e;
         if(e.saldo!=null) st.saldo=e.saldo;
         upsertArquivo(f.name,'extrato',`saldo atual ${brl(e.saldo)} · ${e.periodo}`,e.saldo!=null?'ok':'warn');
       }else upsertArquivo(f.name,'?','tipo de PDF não reconhecido','err');
@@ -521,7 +523,7 @@ function renderAll(){
   renderArquivos();renderMedicos();renderProv();renderDist();renderSalvos();renderParams();
 }
 function renderArquivos(){
-  $('fileList').innerHTML=st.arquivos.map(a=>`<div class="f"><span class="badge ${a.cls}">${esc(a.tipo)}</span><span class="nm">${esc(a.nome)}</span><span>${esc(a.info)}</span></div>`).join('');
+  $('fileList').innerHTML=st.arquivos.map(a=>`<div class="f"><span class="badge ${a.cls}">${esc(a.tipo)}</span><span class="nm">${esc(a.nome)}</span><span>${esc(a.info)}</span><button class="link noprint" data-rmfile="${esc(a.nome)}" title="Remover este arquivo">✕ remover</button></div>`).join('')+(st.arquivos.length?'<div class="f noprint"><button class="link" id="btRmTodos">✕ remover todos os arquivos</button></div>':'');
   $('inComp').value=st.competencia||'';
   const setIfIdle=(id,v)=>{const el=$(id);if(document.activeElement!==el)el.value=v==null?'':brl(v);};
   setIfIdle('inNF',st.valorNF);setIfIdle('inINSS',st.inss);setIfIdle('inDesc',R.prov.desconto);setIfIdle('inSaldo',st.saldo);
@@ -698,9 +700,20 @@ document.addEventListener('change',e=>{
   }
 });
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-toggle],[data-x],[data-abrir],[data-del],#btAutoX');
+  const t=e.target.closest('[data-rmfile],#btRmTodos,[data-toggle],[data-x],[data-abrir],[data-del],#btAutoX');
   if(!t)return;
-  if(t.dataset.toggle){const id=t.dataset.toggle;abertos.has(id)?abertos.delete(id):abertos.add(id);renderMedicos();}
+  if(t.dataset.rmfile){
+    const n=t.dataset.rmfile;
+    st.arquivos=st.arquivos.filter(a=>a.nome!==n);
+    st.relatorios=st.relatorios.filter(r=>r.arquivo!==n);
+    if(st.demo&&st.demo.arquivo===n){st.demo=null;st.valorNF=null;st.desconto=null;}
+    if(st.extrato&&st.extrato.arquivo===n){st.extrato=null;st.saldo=null;}
+    persistDraft();renderAll();
+  }else if(t.id==='btRmTodos'){
+    if(!confirm('Remover todos os arquivos carregados?'))return;
+    st.arquivos=[];st.relatorios=[];st.demo=null;st.extrato=null;st.valorNF=null;st.saldo=null;st.desconto=null;
+    persistDraft();renderAll();
+  }else if(t.dataset.toggle){const id=t.dataset.toggle;abertos.has(id)?abertos.delete(id):abertos.add(id);renderMedicos();}
   else if(t.dataset.x){st.distX=+t.dataset.x;persistDraft();renderAll();}
   else if(t.id==='btAutoX'){st.distX=null;persistDraft();renderAll();}
   else if(t.dataset.abrir){
