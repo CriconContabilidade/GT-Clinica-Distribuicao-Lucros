@@ -400,41 +400,49 @@ function calcular(st,cfg,hist){
   const baseIss=r2(valorNF-desconto);
   const iss=r2(baseIss*cfg.issPct/100);
   const crfIrrf=totMed.retencao;
-  // trimestre (competência fecha trimestre → paga no mês seguinte)
+  // IRPJ/CSLL por trimestre. A NF da Unimed é emitida no mês seguinte à competência, então a receita
+  // da competência c é tributada no trimestre do mês c+1. Provisiona-se a dívida ainda não paga:
+  //  - 'ant': trimestre recém-encerrado (vence neste mês) — só quando c+1 é o 1º mês de um trimestre;
+  //  - 'atual': trimestre em curso, acumulado até a competência (inclui a própria).
   const comp=st.competencia||'';
-  const mes=comp?+comp.split('-')[1]:0;
-  const fechaTri=[3,6,9,12].includes(mes);
-  const tri={fecha:fechaTri,meses:[],receita:0,irrfRet:0,csllRet:0,irpjDev:0,csllDev:0,irpjPagar:0,csllPagar:0,total:0,faltando:[]};
-  if(comp){
-    // A NF da Unimed é emitida no mês seguinte à competência: a receita de uma competência cai no trimestre do mês seguinte.
-    // Na competência que antecede o pagamento (mar/jun/set/dez) entra o trimestre já encerrado = as 3 competências anteriores a ela
-    // (ex.: competência 09 paga em out o trimestre jul-set de NFs = competências 06, 07 e 08; a NF da competência 09 sai em out e é do trimestre seguinte).
-    for(let k=-3;fechaTri&&k<=-1;k++){
+  const mesTrib=comp?+ymAdd(comp,1).split('-')[1]:0;
+  const trimestre=ks=>{
+    const q={meses:[],receita:0,irrfRet:0,csllRet:0,irpjDev:0,csllDev:0,irpjPagar:0,csllPagar:0,total:0,faltando:[]};
+    for(const k of ks){
       const ym=ymAdd(comp,k);
       let nf=null,irrf=null,csll=null,orig='';
-      {
+      if(k===0){nf=valorNF;irrf=st.demo&&st.demo.retencoes.irrf!=null?st.demo.retencoes.irrf:r2(valorNF*0.015);csll=st.demo&&st.demo.retencoes.csll!=null?st.demo.retencoes.csll:r2(valorNF*0.01);orig='mês atual';}
+      else{
         const h=hist[ym];
         if(h&&h.nf!=null){nf=h.nf;irrf=h.irrf!=null?h.irrf:r2(nf*0.015);csll=h.csll!=null?h.csll:r2(nf*0.01);orig=h.origem||'histórico';}
-        else tri.faltando.push(ym);
+        else q.faltando.push(ym);
       }
-      tri.meses.push({ym,nf,irrf,csll,orig});
+      q.meses.push({ym,k,nf,irrf,csll,orig});
     }
-    tri.receita=r2(sum(tri.meses.map(m=>m.nf||0)));
-    tri.irrfRet=r2(sum(tri.meses.map(m=>m.irrf||0)));
-    tri.csllRet=r2(sum(tri.meses.map(m=>m.csll||0)));
-    const baseIrpj=tri.receita*cfg.irpjBase/100;
-    tri.baseIrpj=r2(baseIrpj);
-    tri.irpjDev=cfg.irpjMetodo==='legal'?r2(baseIrpj*0.15+Math.max(0,baseIrpj-60000)*0.10):r2(baseIrpj*cfg.irpjAliq/100);
-    tri.csllDev=r2(tri.receita*cfg.csllBase/100*cfg.csllAliq/100);
-    tri.irpjPagar=r2(Math.max(0,tri.irpjDev-tri.irrfRet));
-    tri.csllPagar=r2(Math.max(0,tri.csllDev-tri.csllRet));
-    tri.total=fechaTri?r2(tri.irpjPagar+tri.csllPagar):0;
+    q.receita=r2(sum(q.meses.map(m=>m.nf||0)));
+    q.irrfRet=r2(sum(q.meses.map(m=>m.irrf||0)));
+    q.csllRet=r2(sum(q.meses.map(m=>m.csll||0)));
+    const baseIrpj=q.receita*cfg.irpjBase/100;
+    q.irpjDev=cfg.irpjMetodo==='legal'?r2(baseIrpj*0.15+Math.max(0,baseIrpj-60000)*0.10):r2(baseIrpj*cfg.irpjAliq/100);
+    q.csllDev=r2(q.receita*cfg.csllBase/100*cfg.csllAliq/100);
+    q.irpjPagar=r2(Math.max(0,q.irpjDev-q.irrfRet));
+    q.csllPagar=r2(Math.max(0,q.csllDev-q.csllRet));
+    q.total=r2(q.irpjPagar+q.csllPagar);
+    return q;
+  };
+  const tri={ant:null,atual:null,total:0};
+  if(comp){
+    if([1,4,7,10].includes(mesTrib)) tri.ant=trimestre([-3,-2,-1]);
+    const off=(mesTrib-1)%3;
+    const ks=[];for(let k=-off;k<=0;k++)ks.push(k);
+    tri.atual=trimestre(ks);
+    tri.total=r2((tri.ant?tri.ant.total:0)+tri.atual.total);
   }
   const lin=[
     {k:'iss',nome:`ISS ${cfg.issPct}% sobre R$ ${baseIss.toLocaleString('pt-BR',{minimumFractionDigits:2})} (NF − descontos)`,auto:iss},
     {k:'contab',nome:'Contabilidade (mensal)',auto:cfg.contabilidade},
     {k:'crfirrf',nome:'CRF e IRRF retidos dos médicos (LP)',auto:crfIrrf},
-    {k:'irpjcsll',nome:'IRPJ e CSLL do trimestre',auto:tri.total},
+    {k:'irpjcsll',nome:'IRPJ e CSLL (trimestre a pagar + em curso)',auto:tri.total},
     {k:'outras',nome:'INSS',auto:st.inss||0}
   ].map(l=>{const ov=P[l.k];return {...l,valor:ov!=null&&ov!==''?ov:l.auto,manual:ov!=null&&ov!==''};});
   const totProv=r2(sum(lin.map(l=>l.valor)));
@@ -597,16 +605,23 @@ function renderMedicos(){
 function renderProv(){
   const P=R.prov;
   $('tbProv').innerHTML=`<tr><th>Provisão</th><th class="n">Valor (R$)</th></tr>`+P.lin.map(l=>`<tr><td>${esc(l.nome)}${l.manual?' <span class="badge warn">manual</span>':''}</td><td class="n"><input class="cell" data-prov="${l.k}" value="${brl(l.valor)}"></td></tr>`).join('')+`<tr class="total"><td>TOTAL DE PROVISÕES</td><td class="n">${brl(P.total)}</td></tr>`;
-  const t=P.tri;
-  let b=`<div class="help"><b>IRPJ/CSLL — NFs emitidas ${t.meses.length?'em '+ymLabel(ymAdd(t.meses[0].ym,1))+' a '+ymLabel(ymAdd(t.meses[2].ym,1)):'no trimestre'}</b> (competências ${t.meses.length?t.meses.map(m=>m.ym.slice(5)).join(', '):'—'})</div>`;
-  if(t.meses.length){
-    b+=`<div class="table-wrap"><table class="t"><tr><th>Competência</th><th class="n">Valor NF</th><th class="n">IRRF retido</th><th class="n">CSLL retida</th></tr>`+
-      t.meses.map((m,i)=>`<tr><td>comp. ${ymLabel(m.ym)} <span class="badge info">${esc(m.orig||'faltando')}</span></td><td class="n"><input class="cell" data-hist="${m.ym}" value="${m.nf==null?'':brl(m.nf)}"></td><td class="n">${brl(m.irrf)}</td><td class="n">${brl(m.csll)}</td></tr>`).join('')+
-      `<tr class="total"><td>Trimestre</td><td class="n">${brl(t.receita)}</td><td class="n">${brl(t.irrfRet)}</td><td class="n">${brl(t.csllRet)}</td></tr></table></div>`;
-    b+=`<div class="help" style="margin-top:8px">IRPJ devido (${cfg.irpjBase}% × ${cfg.irpjMetodo==='legal'?'15% + adicional 10% s/ excedente de R$ 60 mil':cfg.irpjAliq+'%'}): <b>R$ ${brl(t.irpjDev)}</b> − IRRF retido = <b>R$ ${brl(t.irpjPagar)}</b><br>CSLL devida (${cfg.csllBase}% × ${cfg.csllAliq}%): <b>R$ ${brl(t.csllDev)}</b> − CSLL retida = <b>R$ ${brl(t.csllPagar)}</b></div>`;
-    if(t.faltando.length) b+=`<div class="note err">Informe o faturamento de ${t.faltando.map(ymLabel).join(', ')} para calcular o trimestre.</div>`;
-  }else if(st.competencia) b+=`<div class="note info">A competência ${ymLabel(st.competencia)} não paga IRPJ/CSLL: como a NF da Unimed é emitida no mês seguinte, o IRPJ/CSLL do trimestre só entra na competência de mar/jun/set/dez (paga no mês seguinte ao fim do trimestre). Nada provisionado aqui.</div>`;
-  else b+='<div class="note info">Informe a competência para calcular o trimestre.</div>';
+  const T=P.tri;
+  const bloco=(q,titulo,nota)=>{
+    let h=`<div class="help" style="margin-top:6px"><b>${titulo}</b> — NFs emitidas em ${q.meses.map(m=>ymLabel(ymAdd(m.ym,1))).join(', ')} <span style="opacity:.8">(competências ${q.meses.map(m=>m.ym.slice(5)).join(', ')})</span></div>`+
+      `<div class="table-wrap"><table class="t"><tr><th>Competência</th><th class="n">Valor NF</th><th class="n">IRRF retido</th><th class="n">CSLL retida</th></tr>`+
+      q.meses.map(m=>`<tr><td>comp. ${ymLabel(m.ym)} <span class="badge info">${esc(m.orig||'faltando')}</span></td><td class="n">${m.k===0?brl(m.nf):`<input class="cell" data-hist="${m.ym}" value="${m.nf==null?'':brl(m.nf)}">`}</td><td class="n">${brl(m.irrf)}</td><td class="n">${brl(m.csll)}</td></tr>`).join('')+
+      `<tr class="total"><td>Total</td><td class="n">${brl(q.receita)}</td><td class="n">${brl(q.irrfRet)}</td><td class="n">${brl(q.csllRet)}</td></tr></table></div>`+
+      `<div class="help" style="margin-top:6px">IRPJ devido (${cfg.irpjBase}% × ${cfg.irpjMetodo==='legal'?'15% + adicional 10% s/ excedente de R$ 60 mil':cfg.irpjAliq+'%'}): <b>R$ ${brl(q.irpjDev)}</b> − IRRF retido = <b>R$ ${brl(q.irpjPagar)}</b><br>CSLL devida (${cfg.csllBase}% × ${cfg.csllAliq}%): <b>R$ ${brl(q.csllDev)}</b> − CSLL retida = <b>R$ ${brl(q.csllPagar)}</b><br>${nota}: <b>R$ ${brl(q.total)}</b></div>`;
+    if(q.faltando.length) h+=`<div class="note err">Informe o faturamento de ${q.faltando.map(ymLabel).join(', ')} para calcular.</div>`;
+    return h;
+  };
+  let b='';
+  if(!st.competencia) b='<div class="note info">Informe a competência para calcular o trimestre.</div>';
+  else{
+    if(T.ant) b+=bloco(T.ant,'Trimestre encerrado — vence neste mês','A pagar');
+    b+=bloco(T.atual,'Trimestre em curso (acumulado até agora)','Provisão acumulada');
+    b+=`<div class="note info">A NF da Unimed é emitida no mês seguinte à competência, por isso a receita da competência ${ymLabel(st.competencia)} entra no trimestre de ${ymLabel(ymAdd(st.competencia,1))}. A provisão é a dívida ainda não paga: o trimestre que vence agora (se houver) + o acumulado do trimestre em curso.</div>`;
+  }
   $('boxTrim').innerHTML=b;
   $('msgProv').innerHTML=`<div class="help" style="margin-top:8px">CRF (PIS 0,65% + COFINS 3% + CSLL 1%) e IRRF (1,5%) são os 6,15% retidos dos médicos LP — a clínica recolhe. O INSS vem do campo “Valor do INSS” lá em cima (zero se não informado).</div>`;
 }
